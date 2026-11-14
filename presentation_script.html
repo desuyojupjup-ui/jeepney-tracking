@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JEEPTRACK - Presentation Script & System Walkthrough</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap');
+
+  @page {
+    size: A4;
+    margin: 18mm 16mm 18mm 16mm;
+  }
+
+  * {
+    box-sizing: border-box;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    color: #1e293b;
+    line-height: 1.55;
+    font-size: 13px;
+    background-color: #ffffff;
+    margin: 0;
+    padding: 0;
+  }
+
+  /* Header Cover / Title Block */
+  .header-card {
+    background: linear-gradient(135deg, #005a30 0%, #008744 50%, #00a854 100%);
+    color: #ffffff;
+    padding: 24px 28px;
+    border-radius: 14px;
+    margin-bottom: 24px;
+    box-shadow: 0 8px 24px rgba(0, 90, 48, 0.15);
+  }
+
+  .header-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.22);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .header-card h1 {
+    margin: 0 0 6px 0;
+    font-size: 24px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff;
+  }
+
+  .header-subtitle {
+    margin: 0 0 14px 0;
+    font-size: 13px;
+    font-weight: 500;
+    opacity: 0.92;
+  }
+
+  .header-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 11px;
+    padding-top: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.25);
+  }
+
+  .meta-item strong {
+    color: #ffffff;
+  }
+
+  /* Headings */
+  h2 {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    border-bottom: 2px solid #e2e8f0;
+    padding-bottom: 6px;
+    margin-top: 24px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  h2 .num-badge {
+    background: #008744;
+    color: #ffffff;
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  h3 {
+    font-size: 13.5px;
+    font-weight: 700;
+    color: #1e293b;
+    margin-top: 14px;
+    margin-bottom: 6px;
+  }
+
+  p {
+    margin: 0 0 10px 0;
+  }
+
+  /* Speaker Script Callout Boxes */
+  .speaker-box {
+    background: #f8fafc;
+    border-left: 4px solid #008744;
+    border-radius: 0 10px 10px 0;
+    padding: 12px 16px;
+    margin: 10px 0 16px 0;
+    font-style: italic;
+    color: #334155;
+    position: relative;
+    border-top: 1px solid #f1f5f9;
+    border-right: 1px solid #f1f5f9;
+    border-bottom: 1px solid #f1f5f9;
+  }
+
+  .speaker-box::before {
+    content: "SPEAKER SCRIPT";
+    display: block;
+    font-style: normal;
+    font-size: 9.5px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    color: #008744;
+    margin-bottom: 5px;
+  }
+
+  .action-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #1d4ed8;
+  }
+
+  .action-box strong {
+    color: #1e40af;
+  }
+
+  /* Modern Data Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 16px 0;
+    font-size: 12px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  th {
+    background: #f1f5f9;
+    color: #334155;
+    font-weight: 700;
+    text-align: left;
+    padding: 8px 12px;
+    border-bottom: 1px solid #cbd5e1;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  td {
+    padding: 8px 12px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: top;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tr:nth-child(even) td {
+    background-color: #f8fafc;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 10.5px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .tag-green { background: #dcfce7; color: #166534; }
+  .tag-blue { background: #dbeafe; color: #1e40af; }
+  .tag-amber { background: #fef3c7; color: #92400e; }
+  .tag-rose { background: #ffe4e6; color: #9f1239; }
+
+  ul {
+    margin: 6px 0 12px 18px;
+    padding: 0;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
+
+  /* Defense Q&A Cards */
+  .qa-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+  }
+
+  .qa-question {
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 4px;
+    font-size: 12.5px;
+  }
+
+  .qa-answer {
+    color: #475569;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-before: always;
+  }
+
+  .footer-note {
+    text-align: center;
+    font-size: 10.5px;
+    color: #94a3b8;
+    margin-top: 24px;
+    padding-top: 10px;
+    border-top: 1px solid #e2e8f0;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Title Card -->
+  <div class="header-card">
+    <div class="header-badge">Official Presentation Guide &amp; Speaker Script</div>
+    <h1>JEEPTRACK System Walkthrough</h1>
+    <div class="header-subtitle">Smart Public Utility Jeepney (PUJ) Tracking &amp; Fleet Dispatch Management System</div>
+    <div class="header-meta">
+      <div class="meta-item"><strong>Corridor:</strong> PLMun Main Campus ⇄ Alabang South Station</div>
+      <div class="meta-item"><strong>Location:</strong> Muntinlupa City, Philippines</div>
+      <div class="meta-item"><strong>Audience:</strong> Thesis Panel, Transport Regulators, LGU, &amp; Co-op Operators</div>
+    </div>
+  </div>
+
+  <!-- Part 1: Presentation Overview & Agenda -->
+  <h2><span class="num-badge">1</span> Presentation Agenda &amp; Timing</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 20%;">Section</th>
+        <th style="width: 60%;">Topic Covered</th>
+        <th style="width: 20%;">Time</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Part 1</strong></td>
+        <td>Introduction, Background, &amp; Corridor Commuting Challenges</td>
+        <td>1 - 2 mins</td>
+      </tr>
+      <tr>
+        <td><strong>Part 2</strong></td>
+        <td>System Architecture &amp; The 3 Core Portals</td>
+        <td>2 - 3 mins</td>
+      </tr>
+      <tr>
+        <td><strong>Part 3</strong></td>
+        <td>Live Portal Demonstrations (Commuter, Driver, Central Dispatch)</td>
+        <td>5 - 6 mins</td>
+      </tr>
+      <tr>
+        <td><strong>Part 4</strong></td>
+        <td>Plain-English Explanation of Complex Transit &amp; GPS Terms</td>
+        <td>2 mins</td>
+      </tr>
+      <tr>
+        <td><strong>Part 5</strong></td>
+        <td>Panel Defense Q&amp;A &amp; Closing Statement</td>
+        <td>2 - 3 mins</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- Part 2: Introduction & Problem Statement -->
+  <h2><span class="num-badge">2</span> Introduction &amp; Problem Statement</h2>
+  <div class="speaker-box">
+    "Good morning/afternoon, esteemed panel members, guests, and colleagues.<br><br>
+    Every day, thousands of students, faculty, and workers commute between Pamantasan ng Lungsod ng Muntinlupa (PLMun) and commercial transit hubs in Alabang along the Manila South Road corridor. Unfortunately, commuters face severe daily hurdles: unpredictable waiting times at stops, crowded jeepneys with unknown seating availability, and uncertainty regarding road traffic conditions.<br><br>
+    At the same time, transport cooperatives and city dispatchers lack real-time visibility into where their fleet is, whether vehicles are bunching together in traffic, or if a driver has suffered a breakdown on the road.<br><br>
+    To solve this, we developed <strong>JEEPTRACK</strong> — an end-to-end, real-time GPS tracking and transit dispatch platform tailored for both modern Euro-4 / Electric and traditional Philippine jeepneys. It connects commuters, drivers, and control center operators in one unified digital ecosystem."
+  </div>
+
+  <!-- Part 3: Architecture -->
+  <h2><span class="num-badge">3</span> System Architecture: The Three Portals</h2>
+  <p>The system is organized into three interconnected, purpose-built interfaces:</p>
+  <ul>
+    <li><strong>Commuter Portal:</strong> A ride-hailing style responsive web app providing real-time vehicle map locations, arrival countdowns, seat occupancy, and student fare calculation.</li>
+    <li><strong>Driver In-Cab Console:</strong> A high-contrast mobile dashboard mounted on the jeepney for route navigation, one-tap passenger counting, and instant Emergency SOS alerting.</li>
+    <li><strong>Central Dispatch Admin Portal:</strong> An enterprise operations dashboard for transport cooperative managers and LGU dispatchers to oversee fleet operations, terminal queues, alerts, and analytics.</li>
+  </ul>
+
+  <!-- PAGE BREAK -->
+  <div class="page-break"></div>
+
+  <!-- Part 4: Live Portal Demonstrations -->
+  <h2><span class="num-badge">4</span> Live Portal Demonstrations</h2>
+
+  <h3>3A. Commuter Portal (Students &amp; Public Transit Riders)</h3>
+  <div class="action-box">
+    <strong>Demo Action:</strong> Open the live web link (<code>https://jeepney-tracking.vercel.app</code>) and display the full-screen interactive Leaflet map.
+  </div>
+  <div class="speaker-box">
+    "Let us begin with the Commuter Portal:<br><br>
+    • <strong>Full-Screen Interactive Map:</strong> Inspired by ride-hailing apps like Grab and Move It, commuters immediately see live moving jeepneys along the corridor. Each vehicle icon is rotated dynamically to match the heading direction of the jeepney.<br>
+    • <strong>One-Tap Route Direction:</strong> Commuters can seamlessly toggle between <em>PLMun to Alabang</em> and <em>Alabang to PLMun</em>.<br>
+    • <strong>Vehicle Status &amp; Seat Availability:</strong> Tapping any approaching jeepney displays its unit code (e.g., PLM-01), live speed, and an exact countdown (e.g., 'Arrival: 4 mins'). Most importantly, it shows available seating — such as '14 / 20 Seats (6 Free)' — eliminating the guesswork of whether an arriving vehicle can accommodate them.<br>
+    • <strong>2-Minute Proximity Bell Alert:</strong> Commuters can activate an arrival bell that chimes when their target vehicle is within 2 minutes of their selected stop.<br>
+    • <strong>Automated 20% Discount Fare Matrix:</strong> In strict compliance with LTFRB regulations, the stop selector computes both standard fares and the 20% student/PWD/senior citizen discounted fare automatically."
+  </div>
+
+  <h3>3B. Driver In-Cab Console (Dashboard Mobile App)</h3>
+  <div class="action-box">
+    <strong>Demo Action:</strong> Switch to the Driver view or log in using credentials <code>driver1 / driver123</code>.
+  </div>
+  <div class="speaker-box">
+    "Next is the Driver In-Cab Console, engineered for hands-free clarity while mounted on a jeepney's dashboard:<br><br>
+    • <strong>Driver Identification &amp; Shift Status:</strong> The top bar displays unit PLM-01, driver name, license number, and an active toggle for <strong>ON DUTY</strong> vs. <strong>ON BREAK</strong>. Taking a break immediately marks the unit idle so commuters know it is parked at the terminal.<br>
+    • <strong>Live Navigation &amp; Speedometer:</strong> Drivers see their speed in km/h, road hazard pins, and a quick-switch route button.<br>
+    • <strong>Thumb-Friendly Passenger Counter:</strong> Large '+' and '–' buttons allow drivers to quickly record boarding and alighting passengers without taking their eyes off the road.<br>
+    • <strong>One-Touch Emergency SOS Help:</strong> In case of engine failure, flat tire, or medical distress, pressing this button immediately transmits vehicle GPS coordinates and sounds an emergency siren in the central control room.<br>
+    • <strong>Road Problem Reporting:</strong> Drivers can report heavy traffic congestion, road works, flash floods, or accidents to broadcast warning pins to fellow drivers."
+  </div>
+
+  <!-- PAGE BREAK -->
+  <div class="page-break"></div>
+
+  <h3>3C. Central Dispatch Admin Portal (Control Center)</h3>
+  <div class="action-box">
+    <strong>Demo Action:</strong> Log in to the Admin Portal using <code>admin / admin123</code> and navigate through the side navigation tabs.
+  </div>
+  <div class="speaker-box">
+    "Now we arrive at the Central Dispatch Admin Portal, the nerve center for transport operators:<br><br>
+    1. <strong>Executive KPI Cards:</strong> Instant metrics showing Active Units on the road, Daily Passengers serviced, On-Time Dispatch Rate (benchmarked against corridor trip averages), and Active Alerts.<br>
+    2. <strong>Terminal Geofencing:</strong> Virtual circular boundaries around PLMun Terminal and Alabang South Station automatically log arrival and departure timestamps without paper clipboards.<br>
+    3. <strong>Operational Alerts Management:</strong> Dispatched incidents (Emergency SOS, road deviation, speeding) are listed by priority with acknowledgment and resolution tracking.<br>
+    4. <strong>Passenger Analytics:</strong> Visualizes morning (7:00 AM – 9:00 AM) and evening (5:00 PM – 7:00 PM) rush-hour curves to help cooperatives deploy the optimal number of units.<br>
+    5. <strong>Enterprise Datatables:</strong> All management tables (Registered Users, Fleet Management, Alerts, Terminals) feature integrated search bars, status filters, CSV export, and pagination."
+  </div>
+
+  <!-- Part 5: Difficult Terms Explained Simply -->
+  <h2><span class="num-badge">5</span> Plain-English Explanations of Complex Terms</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width: 25%;">Technical Term</th>
+        <th style="width: 45%;">Plain-English Explanation</th>
+        <th style="width: 30%;">Real-World Value</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>GPS Telemetry</strong></td>
+        <td>Continuous stream of vehicle data (latitude, longitude, speed, and compass heading) sent to the server every few seconds.</td>
+        <td>Allows commuters and operators to watch the vehicle move in real time on the road.</td>
+      </tr>
+      <tr>
+        <td><strong>Geofencing</strong></td>
+        <td>A virtual boundary (80-meter radius) drawn around terminals and stops.</td>
+        <td>Automatically registers when a jeepney enters or leaves a terminal bay without manual logbooks.</td>
+      </tr>
+      <tr>
+        <td><strong>Dynamic ETA</strong></td>
+        <td>Estimated arrival time calculated using actual live vehicle speed and remaining road distance.</td>
+        <td>If traffic slows down near Putatan, arrival time adjusts automatically so waiting riders have accurate info.</td>
+      </tr>
+      <tr>
+        <td><strong>Corridor Simulator</strong></td>
+        <td>A virtual driving simulation engine following the exact Manila South Road coordinates.</td>
+        <td>Allows panelists and evaluators to test and demonstrate full tracking features indoors without needing a moving car.</td>
+      </tr>
+      <tr>
+        <td><strong>Seat Occupancy Tracking</strong></td>
+        <td>Real-time count of seated passengers versus maximum vehicle capacity (e.g., 20 seats).</td>
+        <td>Stops commuters from waiting for full jeepneys; helps operators optimize passenger flow.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- PAGE BREAK -->
+  <div class="page-break"></div>
+
+  <!-- Part 6: Q&A Defense Ready -->
+  <h2><span class="num-badge">6</span> Frequently Asked Questions (Defense-Ready Answers)</h2>
+
+  <div class="qa-card">
+    <div class="qa-question">Q1: "What happens if a driver loses mobile internet connectivity while on the road?"</div>
+    <div class="qa-answer">
+      <strong>Answer:</strong> "The system automatically preserves the vehicle's last reported location and flags its status as 'GPS Standby' or 'Offline' with an accurate timestamp (e.g., 'Last updated 3 mins ago'). When mobile data reconnects, the telemetry stream resumes immediately. Central dispatch is also alerted if an active vehicle goes silent unexpectedly."
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-question">Q2: "Can traditional jeepneys use this system, or is it strictly for Modern PUJs?"</div>
+    <div class="qa-answer">
+      <strong>Answer:</strong> "JEEPTRACK was built specifically to support both! Traditional PUJs only need an affordable smartphone on a dashboard mount running our web app. Modern Euro-4 and Electric jeepneys can utilize the same app or connect to onboard GPS telemetry units."
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-question">Q3: "How does the platform prevent student discount fraud?"</div>
+    <div class="qa-answer">
+      <strong>Answer:</strong> "The Commuter Portal includes an accredited PLMun Digital Transit ID Pass with a verified student number and photo badge. Commuters present this pass upon boarding to verify their entitlement to the 20% legal discount computed by the fare calculator."
+    </div>
+  </div>
+
+  <div class="qa-card">
+    <div class="qa-question">Q4: "Why choose a Progressive Web Application (PWA) over a native app from Google Play or App Store?"</div>
+    <div class="qa-answer">
+      <strong>Answer:</strong> "A high-performance PWA eliminates the barrier of phone storage space and lengthy app store installation flows. Commuters and drivers can immediately open the link on any smartphone browser while enjoying smooth animations and native touch responsiveness."
+    </div>
+  </div>
+
+  <!-- Conclusion -->
+  <h2><span class="num-badge">7</span> Closing Statement</h2>
+  <div class="speaker-box">
+    "In conclusion, <strong>JEEPTRACK</strong> modernizes Philippine public transit along the PLMun–Alabang corridor. It empowers commuters with predictability and safety, supports jeepney drivers with simple digital tools, and equips transport operators with real-time operational data.<br><br>
+    Thank you very much, and we are now open to your questions and feedback."
+  </div>
+
+  <div class="footer-note">
+    JEEPTRACK &bull; Smart Public Utility Jeepney GPS Tracking &amp; Fleet Dispatch Management System &bull; Muntinlupa City, Philippines
+  </div>
+
+</body>
+</html>
+
