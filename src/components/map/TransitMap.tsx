@@ -276,6 +276,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
   const [showDirectionsCard, setShowDirectionsCard] = useState(true);
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const [trafficOverlayActive, setTrafficOverlayActive] = useState(true);
+  const iconCacheRef = useRef<Record<string, L.DivIcon>>({});
 
   // Automatically update map theme when the global dark mode toggle is clicked
   useEffect(() => {
@@ -357,11 +358,18 @@ export const TransitMap: React.FC<TransitMapProps> = ({
   };
 
   // Top-view Modern Philippine Jeepney Tracker Puck using user custom /jeepney.png
-  const createGoogleJeepneyPuck = (jeepney: Jeepney, isSelected: boolean) => {
+  // Memoized / cached by [id, roundedHeading, isSelected, status, eta, modelType] to completely eliminate image flickering
+  const getGoogleJeepneyPuck = (jeepney: Jeepney, isSelected: boolean) => {
     // Direction bearing alignment (Dynamic road-tangent bearing calculated from the path segment)
-    const headingDeg = typeof jeepney.heading === 'number' 
+    const rawHeading = typeof jeepney.heading === 'number' 
       ? jeepney.heading 
       : (jeepney.direction === 'Alabang_to_PLMun' ? 195 : 15);
+    const headingDeg = Math.round(rawHeading / 5) * 5;
+
+    const cacheKey = `${jeepney.id}-${headingDeg}-${isSelected ? '1' : '0'}-${jeepney.status}-${jeepney.etaMinutes || 0}-${jeepney.modelType}`;
+    if (iconCacheRef.current[cacheKey]) {
+      return iconCacheRef.current[cacheKey];
+    }
 
     // Vehicle category colors & badges
     let bodyColor = '#00B14F'; // Modern Electric (Emerald Green)
@@ -373,9 +381,9 @@ export const TransitMap: React.FC<TransitMapProps> = ({
 
     const isEnRoute = jeepney.status === 'en_route';
 
-    return L.divIcon({
+    const icon = L.divIcon({
       html: `
-        <div class="relative w-[60px] h-[70px] flex items-center justify-center cursor-pointer select-none">
+        <div class="relative w-[60px] h-[70px] flex items-center justify-center cursor-pointer select-none" style="will-change: transform; transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden;">
           <!-- Floating Upright Code & ETA Badge (Level and always readable!) -->
           <div class="absolute -top-3 z-20 flex items-center gap-1 bg-slate-900/95 backdrop-blur-md px-2 py-0.5 rounded-full shadow-lg border text-white font-mono text-[10px] font-extrabold whitespace-nowrap transition-all ${
             isSelected 
@@ -388,21 +396,23 @@ export const TransitMap: React.FC<TransitMapProps> = ({
             <span class="text-emerald-400 font-bold">${jeepney.etaMinutes ? `${jeepney.etaMinutes}m` : '0m'}</span>
           </div>
 
-          <!-- Pulsing Radar Glow Halo when Selected or in Motion -->
+          <!-- Pulsing Radar Glow Halo when Selected or in Motion (Soft, non-strobe) -->
           ${isSelected ? `
-            <div class="absolute w-14 h-14 rounded-full border-2 border-[#00B14F] animate-ping opacity-40 pointer-events-none"></div>
+            <div class="absolute w-14 h-14 rounded-full border-2 border-[#00B14F] pointer-events-none animate-pulse"></div>
             <div class="absolute w-16 h-16 rounded-full bg-[#00B14F]/15 pointer-events-none"></div>
           ` : isEnRoute ? `
             <div class="radar-halo" style="background: radial-gradient(circle, rgba(0,177,79,0.25) 0%, rgba(0,177,79,0) 70%);"></div>
           ` : ''}
 
           <!-- USER CUSTOM TOP-VIEW JEEPNEY ICON (/jeepney.png) ROTATED TO HEADING -->
-          <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div class="absolute inset-0 flex items-center justify-center pointer-events-none" style="transform: rotate(${headingDeg - 90}deg); transform-origin: center center; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden;">
             <img 
               src="/jeepney.png" 
               alt="${jeepney.jeepneyCode}"
-              class="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.38)] select-none transition-transform duration-300"
-              style="width: 58px; height: 27px; transform: rotate(${headingDeg - 90}deg); transform-origin: center center; object-fit: contain;"
+              class="filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.38)] select-none"
+              style="width: 58px; height: 27px; object-fit: contain; backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: translateZ(0);"
+              loading="eager"
+              decoding="sync"
             />
           </div>
         </div>
@@ -411,6 +421,9 @@ export const TransitMap: React.FC<TransitMapProps> = ({
       iconSize: [60, 70],
       iconAnchor: [30, 35],
     });
+
+    iconCacheRef.current[cacheKey] = icon;
+    return icon;
   };
 
   const handleLandmarkClick = (coord: [number, number]) => {
@@ -895,7 +908,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
           <Marker
             key={puj.id}
             position={[puj.currentLat, puj.currentLng]}
-            icon={createGoogleJeepneyPuck(puj, puj.id === selectedJeepneyId)}
+            icon={getGoogleJeepneyPuck(puj, puj.id === selectedJeepneyId)}
             eventHandlers={{
               click: () => onSelectJeepney && onSelectJeepney(puj),
             }}

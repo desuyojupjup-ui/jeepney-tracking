@@ -308,7 +308,7 @@ function AppContent() {
         /* -------------------------------------------------------------
            PUBLIC COMMUTER & DRIVER PORTAL LAYOUT (Standard Topbar)
            ------------------------------------------------------------- */
-        <div className={`min-h-screen bg-slate-50 dark:bg-[#0B132B] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 ${currentRole === 'commuter' || currentRole === 'driver' ? 'h-screen overflow-hidden' : ''}`}>
+        <div className={`min-h-screen bg-slate-50 dark:bg-[#0B132B] text-slate-900 dark:text-slate-100 flex flex-col font-sans transition-colors duration-200 ${currentRole === 'commuter' ? 'h-screen overflow-hidden' : ''}`}>
           {/* Universal Top Navbar for Public Commuter & Driver Cab */}
           <TopNavbar
             currentRole={currentRole}

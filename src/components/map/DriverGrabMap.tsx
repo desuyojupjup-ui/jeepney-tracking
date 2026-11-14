@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   MapContainer, 
   TileLayer, 
@@ -81,6 +81,18 @@ function DriverNavController({
       map.off('dragstart', handleDragStart);
     };
   }, [map, setIsAutoFollowActive]);
+
+  useEffect(() => {
+    if (!isAutoFollowActive) return;
+
+    // Immediately pan to vehicle when auto-follow is active or restored
+    map.panTo(coords, {
+      animate: true,
+      duration: 0.6,
+      easeLinearity: 0.25,
+    });
+    lastPanRef.current = `${coords[0].toFixed(5)},${coords[1].toFixed(5)}`;
+  }, [isAutoFollowActive]);
 
   useEffect(() => {
     if (!isAutoFollowActive) return;
@@ -196,32 +208,36 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   });
 
   // 1. User Custom Jeepney Vehicle Marker (/jeepney.png)
-  const createRedVehicleIcon = (puj: Jeepney) => {
-    const headingDeg = puj.heading || 0;
+  // Memoized by [jeepneyCode, roundedHeading, isTripActive] to completely stop DOM reconstruction and image flickering
+  const roundedHeading = Math.round((activeJeepney.heading || 0) / 4) * 4;
+
+  const vehicleIcon = useMemo(() => {
+    const headingDeg = roundedHeading;
 
     return L.divIcon({
       html: `
-        <div class="relative flex flex-col items-center justify-center pointer-events-auto" style="width: 76px; height: 76px;">
+        <div class="relative flex flex-col items-center justify-center pointer-events-auto" style="width: 76px; height: 76px; will-change: transform; transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden;">
           
-          <!-- Pulsing Radar Glow when moving -->
+          <!-- Soft Pulsing Radar Glow when moving (Non-strobe) -->
           ${isTripActive ? `
-            <div class="absolute w-16 h-16 rounded-full bg-emerald-500/25 animate-ping opacity-75 pointer-events-none"></div>
-            <div class="absolute w-20 h-20 rounded-full bg-emerald-500/10 pointer-events-none animate-pulse"></div>
+            <div class="absolute w-16 h-16 rounded-full bg-emerald-500/20 pointer-events-none animate-pulse" style="animation-duration: 2s;"></div>
           ` : ''}
 
           <!-- Floating Unit Code Badge -->
-          <div class="absolute -top-4 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-md text-[9px] font-black font-mono tracking-tight whitespace-nowrap">
-            <span class="w-1.5 h-1.5 rounded-full ${isTripActive ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}"></span>
-            <span>${puj.jeepneyCode}</span>
+          <div class="absolute -top-3.5 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-md text-[9px] font-black font-mono tracking-tight whitespace-nowrap">
+            <span class="w-1.5 h-1.5 rounded-full ${isTripActive ? 'bg-emerald-400' : 'bg-amber-400'}"></span>
+            <span>${activeJeepney.jeepneyCode}</span>
           </div>
 
           <!-- USER CUSTOM JEEPNEY / VEHICLE (ROTATED TO HEADING) -->
-          <div style="transform: rotate(${headingDeg - 90}deg); transform-origin: center center;" class="transition-transform duration-300 w-full h-full flex items-center justify-center pointer-events-none">
+          <div style="transform: rotate(${headingDeg - 90}deg); transform-origin: center center; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden;" class="w-full h-full flex items-center justify-center pointer-events-none">
             <img 
               src="/jeepney.png" 
-              alt="${puj.jeepneyCode}"
-              class="filter drop-shadow-[0_8px_14px_rgba(0,0,0,0.45)] select-none"
-              style="width: 66px; height: 31px; object-fit: contain;"
+              alt="${activeJeepney.jeepneyCode}"
+              class="filter drop-shadow-[0_6px_12px_rgba(0,0,0,0.45)] select-none"
+              style="width: 66px; height: 31px; object-fit: contain; backface-visibility: hidden; -webkit-backface-visibility: hidden; transform: translateZ(0);"
+              loading="eager"
+              decoding="sync"
             />
           </div>
         </div>
@@ -230,7 +246,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       iconSize: [76, 76],
       iconAnchor: [38, 38],
     });
-  };
+  }, [activeJeepney.jeepneyCode, roundedHeading, isTripActive]);
 
   // 2. Incident & Hazard Speech Balloon Pins (Matches the user's uploaded image exactly)
   const createHazardPinIcon = (type: 'traffic' | 'flood' | 'breakdown') => {
@@ -305,7 +321,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const blueFinalSegment = PLMUN_ALABANG_PATH.slice(8);
 
   return (
-    <div className="relative w-full h-[540px] sm:h-[620px] lg:h-[680px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none">
+    <div className="relative w-full h-[500px] xs:h-[520px] sm:h-[600px] lg:h-[660px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none">
       
       {/* Voice Guidance Toast */}
       {voiceToast && (
@@ -356,7 +372,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
               >
                 <div className="flex items-center gap-1.5 min-w-0">
                   <ArrowRightLeft className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <span className="truncate font-extrabold">
+                  <span className="truncate font-extrabold text-[11px] sm:text-xs">
                     {direction === 'PLMun_to_Alabang' ? 'PLMun ➔ Alabang' : 'Alabang ➔ PLMun'}
                   </span>
                 </div>
@@ -529,7 +545,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
         {/* ACTIVE RED 3D DRIVER VEHICLE (YOU) */}
         <Marker
           position={vehicleCoords}
-          icon={createRedVehicleIcon(activeJeepney)}
+          icon={vehicleIcon}
           zIndexOffset={1000}
         >
           <Popup>
@@ -563,7 +579,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* 5. BOTTOM NAVIGATION SHEET (Compact, Responsive, Never Cuts Off)          */}
       {/* ========================================================================= */}
       <div className="absolute bottom-0 left-0 right-0 z-[1001] pointer-events-none">
-        <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-t-[30px] shadow-[0_-6px_28px_rgba(0,0,0,0.15)] border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 max-h-[85%] overflow-y-auto transition-all duration-300">
+        <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-t-[30px] shadow-[0_-6px_28px_rgba(0,0,0,0.15)] border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 max-h-[85%] overflow-y-auto pb-6 sm:pb-4 transition-all duration-300">
           
           {/* Top Pull Handle Bar */}
           <div 
@@ -580,17 +596,16 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
                 <span className={`text-xl sm:text-2xl font-black tracking-tight ${
                   isTripActive ? 'text-[#D32F2F]' : 'text-emerald-600 dark:text-emerald-400'
                 }`}>
-                  {isTripActive ? `${etaMinutes} min` : 'Ready'}
+                  {isTripActive ? `${etaMinutes} min` : 'Parked / Ready'}
                 </span>
                 <span className="text-xs text-slate-500 font-semibold truncate">
                   ({activeJeepney.distanceRemainingKm || 2.1} km)
                 </span>
               </div>
               
-              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium whitespace-nowrap">
-                <span>Arrival: <strong className="text-slate-800 dark:text-slate-200">{arrivalTime}</strong></span>
-                <span>•</span>
-                <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 shrink-0">
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium">
+                <span className="whitespace-nowrap">Arrival: <strong className="text-slate-800 dark:text-slate-200">{arrivalTime}</strong></span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 shrink-0 whitespace-nowrap">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
                   Fast Route
                 </span>
