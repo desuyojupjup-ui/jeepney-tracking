@@ -76,7 +76,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
     },
     {
       q: 'What should drivers do during transit emergencies?',
-      a: 'Drivers have an immediate One-Touch Emergency SOS beacon on their in-cab console. Activating it instantaneously transmits vehicle coordinates, plate number, and distress status to the Central Control Center for immediate dispatch response.',
+      a: 'Drivers have an immediate One-Touch Emergency SOS button on their console. Pressing it sends the vehicle location, plate number, and emergency alert to the Central Control Center for immediate dispatch response.',
     },
   ];
 
@@ -568,7 +568,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />
-                  <span>One-Touch Emergency SOS Distress Beacon</span>
+                  <span>One-Touch Emergency SOS Button</span>
                 </li>
                 <li className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-500 shrink-0" />

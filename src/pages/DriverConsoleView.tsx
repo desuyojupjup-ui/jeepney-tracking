@@ -104,7 +104,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       onRequestSignOut();
       return;
     }
-    const confirmLogout = window.confirm('End shift and sign out of the Driver Console? GPS broadcasting will cease and unit will go offline.');
+    const confirmLogout = window.confirm('End shift and sign out? Your vehicle will go offline.');
     if (confirmLogout) {
       if (isTripActive) {
         endTrip(activeJeepney.id);
@@ -144,7 +144,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
   // Start / End Trip Actions
   const handleToggleTrip = () => {
     if (isTripActive) {
-      const confirmEnd = window.confirm(`End current trip and dock at ${direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal'}?`);
+      const confirmEnd = window.confirm(`End current trip and arrive at ${direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal'}?`);
       if (confirmEnd) {
         endTrip(activeJeepney.id);
         progressRef.current = 0.05;
@@ -238,7 +238,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       (err) => {
         console.warn('HTML5 Geolocation watch error:', err.message);
         setUseDeviceGps(false);
-        alert('Could not access device GPS sensor. Switched back to Corridor GPS Simulator.');
+        alert('Could not access device GPS sensor. Switched back to Simulated GPS.');
       },
       { enableHighAccuracy: true, maximumAge: 2000, timeout: 5000 }
     );
@@ -247,35 +247,36 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
   }, [useDeviceGps, activeJeepney.id]);
 
   return (
-    <div className="max-w-md lg:max-w-5xl mx-auto px-3 sm:px-4 py-4 space-y-4 font-sans text-slate-900 dark:text-slate-100">
+    <div className="max-w-md lg:max-w-5xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 font-sans text-slate-900 dark:text-slate-100">
       
       {/* Toast Notification when SOS is sent */}
       {sosSentToast && (
-        <div className="fixed top-20 left-4 right-4 z-50 bg-rose-600 text-white p-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-rose-400">
-          <AlertTriangle className="w-5 h-5 text-white animate-pulse shrink-0" />
+        <div className="fixed top-20 left-4 right-4 z-50 bg-rose-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3.5 animate-fade-in border border-rose-400">
+          <AlertTriangle className="w-6 h-6 text-white animate-pulse shrink-0" />
           <div className="text-xs">
-            <span className="font-bold block">Alert Broadcasted Live to Control Center</span>
-            <span>Dispatch and online commuters have received the incident coordinates.</span>
+            <span className="font-bold block text-sm">Emergency Alert Sent</span>
+            <span>Dispatch and passengers have received your vehicle location.</span>
           </div>
         </div>
       )}
 
-      {/* Top Driver & Unit Identification Card (Fully Mobile-Responsive & Collision-Free) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-3.5 shadow-sm dark:shadow-xl transition-colors">
-        <div className="flex items-center justify-between gap-3">
+      {/* Top Driver & Unit Identification Card (Spacious & Mobile-Optimized) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm dark:shadow-xl transition-colors">
+        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 sm:gap-4">
+          
           {/* Left: Unit Badge & Driver Identification */}
-          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 flex-1">
-            <div className="h-10 min-w-[46px] sm:min-w-[50px] px-2 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center font-black font-mono text-xs sm:text-sm tracking-tight text-white shadow-sm shrink-0 whitespace-nowrap">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="h-11 min-w-[50px] sm:h-12 sm:min-w-[56px] px-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center font-black font-mono text-xs sm:text-sm tracking-tight text-white shadow-sm shrink-0 whitespace-nowrap">
               {activeJeepney.jeepneyCode}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
-                <h1 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-base leading-tight truncate">
+                <h1 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base leading-tight truncate">
                   {activeDriverName}
                 </h1>
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
               </div>
-              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono leading-tight mt-0.5 truncate">
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono leading-tight mt-1 truncate">
                 {currentDriver?.username ? (
                   <>
                     <span>@{currentDriver.username}</span>
@@ -288,21 +289,21 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
             </div>
           </div>
 
-          {/* Right: Duty Status Badge & Corridor Route */}
-          <div className="text-right shrink-0 flex flex-col items-end justify-center pl-2.5 sm:pl-3 border-l border-slate-200/80 dark:border-slate-800">
+          {/* Right: Duty Status Badge & Route Info */}
+          <div className="w-full xs:w-auto flex xs:flex-col items-center xs:items-end justify-between xs:justify-center pt-2 xs:pt-0 border-t xs:border-t-0 xs:border-l border-slate-200/80 dark:border-slate-800 xs:pl-3.5">
             <button
               type="button"
               onClick={handleToggleDutyStatus}
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer shadow-xs ${
+              className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer shadow-xs ${
                 activeDutyStatus === 'on_duty' 
-                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800' 
-                  : 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100' 
+                  : 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100'
               }`}
-              title="Click to toggle Shift Status"
+              title="Tap to toggle Shift Status"
             >
               {activeDutyStatus === 'on_duty' ? 'ON DUTY' : 'ON BREAK'}
             </button>
-            <div className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 font-mono font-bold whitespace-nowrap flex items-center gap-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono font-bold whitespace-nowrap flex items-center gap-1.5">
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold">PLMun</span>
               <span className="text-slate-400">⇄</span>
               <span>Alabang</span>
@@ -311,8 +312,8 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
         </div>
       </div>
 
-      {/* Grab Rider Live Navigation Map */}
-      <div className="space-y-3">
+      {/* Live Navigation Map */}
+      <div className="space-y-3.5 sm:space-y-4">
         {/* Grab Rider Map Component */}
         <DriverGrabMap
           activeJeepney={activeJeepney}
@@ -333,20 +334,20 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           onToggleDirection={() => setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang')}
         />
 
-        {/* GPS Telemetry Diagnostic Status Banner */}
-        <div className={`p-3 rounded-2xl border flex items-center justify-between text-xs transition-all shadow-sm ${
+        {/* GPS Live Status Banner (Simplified Wording & Clean Spacing) */}
+        <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-all shadow-sm ${
           isTripActive 
             ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200' 
             : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
         }`}>
-          <div className="flex items-center gap-2.5">
-            <Radio className={`w-4 h-4 ${isTripActive ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
-            <div>
-              <div className="font-extrabold uppercase tracking-wider text-[11px]">
-                {isTripActive ? 'GPS Live Mesh Broadcasting' : 'GPS Standby (Docked at Bay)'}
+          <div className="flex items-center gap-3 min-w-0">
+            <Radio className={`w-5 h-5 shrink-0 ${isTripActive ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+            <div className="min-w-0">
+              <div className="font-extrabold uppercase tracking-wider text-xs truncate">
+                {isTripActive ? 'GPS Online (Broadcasting)' : 'GPS Standby (Parked)'}
               </div>
-              <div className="text-[10px] text-slate-500 dark:text-slate-400 font-mono">
-                Acc: ±{activeJeepney.accuracyMeters}m | Lat: {activeJeepney.currentLat.toFixed(4)}° | Lng: {activeJeepney.currentLng.toFixed(4)}°
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                {isTripActive ? 'Signal Strong • Live updates streaming' : 'Ready to start trip • Location locked'}
               </div>
             </div>
           </div>
@@ -354,30 +355,30 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           {/* Real Device GPS Hardware Toggle */}
           <button
             onClick={() => setUseDeviceGps(!useDeviceGps)}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-[10px] font-mono font-bold transition-all shadow-sm ${
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer ${
               useDeviceGps
-                ? 'bg-emerald-600 text-white border-emerald-500'
-                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700'
+                : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
-            title="Toggle Hardware Phone/Laptop GPS Sensor"
+            title="Toggle between phone GPS and simulated GPS"
           >
-            <LocateFixed className="w-3 h-3" />
-            <span>{useDeviceGps ? 'Phone GPS' : 'Corridor GPS'}</span>
+            <LocateFixed className="w-3.5 h-3.5" />
+            <span>{useDeviceGps ? 'Phone GPS' : 'Simulated GPS'}</span>
           </button>
         </div>
 
-        {/* Big Emergency SOS Button */}
-        <div className="bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-400 dark:border-rose-800 rounded-2xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
+        {/* Emergency SOS Button (Driver-Friendly & Accessible) */}
+        <div className="bg-rose-50 dark:bg-rose-950/60 border-2 border-rose-400 dark:border-rose-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4 transition-colors">
           <div className="flex items-center gap-3 text-center sm:text-left">
             <div className="w-12 h-12 rounded-2xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-md">
               <AlertOctagon className="w-7 h-7 animate-pulse" />
             </div>
             <div>
               <div className="text-sm sm:text-base font-black text-rose-900 dark:text-rose-100">
-                Emergency Assistance & Panic Distress
+                Emergency SOS Help
               </div>
-              <div className="text-xs text-rose-700 dark:text-rose-300">
-                Immediately transmits your vehicle GPS coordinates to the Admin Control Center.
+              <div className="text-xs text-rose-700 dark:text-rose-300 mt-0.5">
+                Sends your vehicle location immediately to the terminal dispatch team.
               </div>
             </div>
           </div>
@@ -387,18 +388,18 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
             className="w-full sm:w-auto py-3.5 px-6 rounded-2xl text-sm font-black bg-rose-600 hover:bg-rose-700 active:scale-95 text-white shadow-xl shadow-rose-900/40 flex items-center justify-center gap-2 shrink-0 transition-all cursor-pointer ring-2 ring-rose-400"
           >
             <AlertOctagon className="w-5 h-5 animate-pulse" />
-            <span>EMERGENCY SOS DISTRESS</span>
+            <span>SEND EMERGENCY SOS</span>
           </button>
         </div>
 
         {/* Driver Shift Checklist & Terminal Hotline */}
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 text-xs text-slate-600 dark:text-slate-400 space-y-1.5 shadow-sm">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-4.5 text-xs text-slate-600 dark:text-slate-400 space-y-1.5 shadow-sm">
           <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white">
-            <span>Terminal Operations Hotline:</span>
-            <span className="font-mono text-emerald-600 dark:text-teal-400 font-bold">0917-800-PLMUN</span>
+            <span>Terminal Hotline:</span>
+            <span className="font-mono text-emerald-600 dark:text-teal-400 font-bold text-xs sm:text-sm">0917-800-PLMUN</span>
           </div>
-          <p className="text-[11px] leading-relaxed">
-            GPS coordinates and speed are streamed in real time to the Muntinlupa Control Center and the Commuter Live Map.
+          <p className="text-xs leading-relaxed text-slate-500 dark:text-slate-400">
+            Your vehicle location and speed are shared live with dispatch and passengers.
           </p>
         </div>
       </div>
@@ -406,48 +407,48 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       {/* Road Hazard Report Modal */}
       {showHazardModal && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full space-y-3.5 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-2">
-              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-500" />
-                <span>Report Incident to Dispatch</span>
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl sm:rounded-3xl p-5 sm:p-6 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <h3 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" />
+                <span>Report Road Problem</span>
               </h3>
               <button 
                 onClick={() => setShowHazardModal(false)}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                className="text-slate-400 hover:text-slate-600 dark:hover:text-white p-1 rounded-lg"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 dark:text-slate-400">
-              Select the condition currently affecting Unit <strong>{activeJeepney.jeepneyCode}</strong>:
+            <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-400">
+              Select what is happening on the road for Unit <strong>{activeJeepney.jeepneyCode}</strong>:
             </p>
 
             <select
               value={hazardReason}
               onChange={(e) => setHazardReason(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-medium"
+              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-900 dark:text-slate-100 focus:outline-none focus:border-indigo-500 font-medium"
             >
-              <option value="Heavy traffic congestion along Manila South Road">Heavy traffic congestion</option>
-              <option value="Road works / Lane closure near Putatan Plaza">Road works / Lane closure</option>
-              <option value="Minor collision / obstruction along corridor">Traffic accident / Obstruction</option>
-              <option value="Flash flood / deep puddle after heavy rain">Flash flood / Puddle along route</option>
-              <option value="Flat tire / mechanical check required">Flat tire / Mechanical issue</option>
+              <option value="Heavy traffic jam along Manila South Road">Heavy traffic jam</option>
+              <option value="Road works / Lane closed near Putatan Plaza">Road works / Lane closed</option>
+              <option value="Car accident / Road blocked along route">Car accident / Road blocked</option>
+              <option value="Flooding / Deep water along route">Flooding / High water</option>
+              <option value="Flat tire / Engine breakdown">Flat tire / Engine breakdown</option>
             </select>
 
-            <div className="flex gap-2 pt-2">
+            <div className="flex gap-2.5 pt-2">
               <button
                 type="button"
                 onClick={() => setShowHazardModal(false)}
-                className="flex-1 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs"
+                className="flex-1 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs sm:text-sm cursor-pointer transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={handleSendHazardAlert}
-                className="flex-1 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs shadow-md"
+                className="flex-1 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-bold text-xs sm:text-sm shadow-md cursor-pointer transition-colors"
               >
                 Send Alert
               </button>

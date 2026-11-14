@@ -607,10 +607,10 @@ export const SystemSettingsView: React.FC = () => {
                   </div>
                   <div>
                     <h3 className="font-bold text-xs text-slate-900 dark:text-white">
-                      In-Cab Emergency SOS Siren & Cockpit Audio
+                      Driver Emergency SOS Alarm Sound
                     </h3>
                     <p className="text-[11px] text-slate-400">
-                      Sounds an emergency alarm siren in the Control Center whenever a driver presses the distress SOS button.
+                      Sounds an emergency siren in the Control Center whenever a driver presses the emergency SOS button.
                     </p>
                   </div>
                 </div>
