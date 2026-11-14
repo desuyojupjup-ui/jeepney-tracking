@@ -79,7 +79,9 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     || jeepneys[0]
     || fallbackUnit;
 
-  const [useDeviceGps, setUseDeviceGps] = useState<boolean>(false);
+  const [useDeviceGps, setUseDeviceGps] = useState<boolean>(true);
+  const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'locked' | 'denied'>('acquiring');
+  const [gpsAccuracy, setGpsAccuracy] = useState<number>(activeJeepney.accuracyMeters || 3.5);
   const [direction, setDirection] = useState<TripDirection>(activeJeepney.direction || 'PLMun_to_Alabang');
   const [showHazardModal, setShowHazardModal] = useState<boolean>(false);
   const [hazardReason, setHazardReason] = useState<string>('Heavy traffic jam / congestion at Putatan');
@@ -225,26 +227,129 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     setTimeout(() => setSosSentToast(false), 5000);
   };
 
-  // Optional Real Device Geolocation Watcher
+  // Fully functional automatic Real Device Geolocation on login
   useEffect(() => {
-    if (!useDeviceGps || !navigator.geolocation) return;
+    let initialAcquired = false;
+    try {
+      const stored = localStorage.getItem('jeeptrack_driver_last_login_gps');
+      if (stored) {
+        const cachedGps = JSON.parse(stored);
+        if (Date.now() - cachedGps.timestamp < 300000) { // within last 5 minutes
+          initialAcquired = true;
+          const roundedAcc = Math.round(cachedGps.accuracy || 4);
+          setGpsStatus('locked');
+          setGpsAccuracy(roundedAcc);
+          setUseDeviceGps(true);
+
+          updateJeepneyLocation(
+            activeJeepney.id,
+            cachedGps.lat,
+            cachedGps.lng,
+            cachedGps.speed || 0,
+            cachedGps.heading || activeJeepney.heading || 0,
+            roundedAcc
+          );
+
+          updateJeepney(activeJeepney.id, {
+            currentLat: cachedGps.lat,
+            currentLng: cachedGps.lng,
+            accuracyMeters: roundedAcc,
+            status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
+            lastGpsUpdate: 'Just now',
+          });
+        }
+      }
+    } catch (e) {}
+
+    // Automatically request real device GPS coordinates with high accuracy
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      if (!initialAcquired) setGpsStatus('acquiring');
+
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude, speed, heading, accuracy } = position.coords;
+          const speedKmh = speed ? Math.round(speed * 3.6) : 0;
+          const roundedAcc = Math.round(accuracy);
+          
+          setGpsStatus('locked');
+          setGpsAccuracy(roundedAcc);
+          setUseDeviceGps(true);
+
+          updateJeepneyLocation(
+            activeJeepney.id,
+            latitude,
+            longitude,
+            speedKmh,
+            heading || activeJeepney.heading || 0,
+            roundedAcc
+          );
+
+          updateJeepney(activeJeepney.id, {
+            currentLat: latitude,
+            currentLng: longitude,
+            speedKmh: speedKmh,
+            heading: heading || activeJeepney.heading || 0,
+            accuracyMeters: roundedAcc,
+            status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
+            lastGpsUpdate: 'Just now',
+          });
+        },
+        (err) => {
+          console.warn('Initial live GPS acquisition error:', err.message);
+          if (!initialAcquired) {
+            setGpsStatus('denied');
+            setUseDeviceGps(false);
+          }
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+      );
+    } else {
+      setGpsStatus('denied');
+      setUseDeviceGps(false);
+    }
+  }, [activeJeepney.id]);
+
+  // Continuous Live GPS Watcher (tracks real movement whenever useDeviceGps is active)
+  useEffect(() => {
+    if (!useDeviceGps || typeof navigator === 'undefined' || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
-        const { latitude, longitude, speed, heading } = position.coords;
-        const speedKmh = speed ? Math.round(speed * 3.6) : activeJeepney.speedKmh;
-        updateJeepneyLocation(activeJeepney.id, latitude, longitude, speedKmh, heading || activeJeepney.heading);
+        const { latitude, longitude, speed, heading, accuracy } = position.coords;
+        const speedKmh = speed !== null ? Math.round(speed * 3.6) : (isTripActive ? activeJeepney.speedKmh : 0);
+        const currentHeading = heading !== null && !isNaN(heading) ? heading : activeJeepney.heading;
+        const roundedAcc = Math.round(accuracy);
+
+        setGpsStatus('locked');
+        setGpsAccuracy(roundedAcc);
+
+        updateJeepneyLocation(
+          activeJeepney.id,
+          latitude,
+          longitude,
+          speedKmh,
+          currentHeading,
+          roundedAcc
+        );
+
+        updateJeepney(activeJeepney.id, {
+          currentLat: latitude,
+          currentLng: longitude,
+          speedKmh: speedKmh,
+          heading: currentHeading,
+          accuracyMeters: roundedAcc,
+          lastGpsUpdate: 'Just now',
+        });
       },
       (err) => {
-        console.warn('HTML5 Geolocation watch error:', err.message);
-        setUseDeviceGps(false);
-        alert('Could not access device GPS sensor. Switched back to Simulated GPS.');
+        console.warn('HTML5 Geolocation continuous watch error:', err.message);
+        setGpsStatus('denied');
       },
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 5000 }
+      { enableHighAccuracy: true, maximumAge: 1500, timeout: 8000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [useDeviceGps, activeJeepney.id]);
+  }, [useDeviceGps, isTripActive, activeJeepney.id, activeJeepney.speedKmh, activeJeepney.heading, updateJeepney, updateJeepneyLocation]);
 
   return (
     <div className="max-w-md lg:max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4 font-sans text-slate-900 dark:text-slate-100 pb-16">
@@ -327,33 +432,69 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           onToggleDirection={() => setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang')}
         />
 
-        {/* GPS Live Status Banner (Simplified Wording & Clean Spacing) */}
+        {/* GPS Live Status Banner (Fully Functional Real-Time Indicator) */}
         <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-all shadow-sm ${
-          isTripActive 
+          useDeviceGps && gpsStatus === 'locked'
             ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200' 
+            : useDeviceGps && gpsStatus === 'acquiring'
+            ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200'
             : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
-            <Radio className={`w-5 h-5 shrink-0 ${isTripActive ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' : 'text-slate-400'}`} />
+            <Radio className={`w-5 h-5 shrink-0 ${
+              useDeviceGps && gpsStatus === 'locked' ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' :
+              useDeviceGps && gpsStatus === 'acquiring' ? 'text-amber-500 animate-spin' : 'text-slate-400'
+            }`} />
             <div className="min-w-0">
               <div className="font-extrabold uppercase tracking-wider text-xs truncate">
-                {isTripActive ? 'GPS Online (Broadcasting)' : 'GPS Standby (Parked)'}
+                {useDeviceGps && gpsStatus === 'locked' ? 'Phone GPS Online (Live Device Location)' :
+                 useDeviceGps && gpsStatus === 'acquiring' ? 'Acquiring Phone GPS Location...' :
+                 useDeviceGps && gpsStatus === 'denied' ? 'Phone GPS Blocked (Check Permissions)' :
+                 'Simulated Corridor GPS (Demo Trajectory)'}
               </div>
-              <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                {isTripActive ? 'Signal Strong • Live updates streaming' : 'Ready to start trip • Location locked'}
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">
+                {useDeviceGps && gpsStatus === 'locked'
+                  ? `Lat: ${activeJeepney.currentLat.toFixed(5)}°, Lng: ${activeJeepney.currentLng.toFixed(5)}° • ±${gpsAccuracy}m • Live`
+                  : useDeviceGps && gpsStatus === 'acquiring'
+                  ? 'Connecting to phone GPS sensor...'
+                  : 'Following virtual trajectory along PLMun-Alabang'}
               </div>
             </div>
           </div>
 
           {/* Real Device GPS Hardware Toggle */}
           <button
-            onClick={() => setUseDeviceGps(!useDeviceGps)}
+            onClick={() => {
+              const next = !useDeviceGps;
+              setUseDeviceGps(next);
+              if (next) {
+                setGpsStatus('acquiring');
+                if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                  navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                      const roundedAcc = Math.round(pos.coords.accuracy);
+                      setGpsStatus('locked');
+                      setGpsAccuracy(roundedAcc);
+                      updateJeepneyLocation(activeJeepney.id, pos.coords.latitude, pos.coords.longitude, 0, 0, roundedAcc);
+                      updateJeepney(activeJeepney.id, {
+                        currentLat: pos.coords.latitude,
+                        currentLng: pos.coords.longitude,
+                        accuracyMeters: roundedAcc,
+                        lastGpsUpdate: 'Just now'
+                      });
+                    },
+                    () => setGpsStatus('denied'),
+                    { enableHighAccuracy: true, timeout: 6000 }
+                  );
+                }
+              }
+            }}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer ${
               useDeviceGps
                 ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
-            title="Toggle between phone GPS and simulated GPS"
+            title="Tap to toggle live phone GPS vs simulated GPS"
           >
             <LocateFixed className="w-3.5 h-3.5" />
             <span>{useDeviceGps ? 'Phone GPS' : 'Simulated GPS'}</span>

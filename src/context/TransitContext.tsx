@@ -43,7 +43,7 @@ interface TransitContextType {
   updateJeepney: (id: string, updates: Partial<Jeepney>) => void;
   deleteJeepney: (id: string) => void;
   updateJeepneyPassengers: (id: string, count: number) => void;
-  updateJeepneyLocation: (id: string, lat: number, lng: number, speed?: number, heading?: number) => void;
+  updateJeepneyLocation: (id: string, lat: number, lng: number, speed?: number, heading?: number, accuracy?: number) => void;
   
   // Trip actions (from Driver Console / Control Center)
   startTrip: (jeepneyId: string, direction?: TripDirection) => void;
@@ -500,7 +500,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const updateJeepneyLocation = (id: string, lat: number, lng: number, speed = 25, heading = 0) => {
+  const updateJeepneyLocation = (id: string, lat: number, lng: number, speed = 25, heading = 0, accuracy = 4.0) => {
     setJeepneys((prev) => {
       const next = prev.map(j => {
         if (j.id !== id) return j;
@@ -510,6 +510,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           currentLng: lng,
           speedKmh: speed,
           heading: heading,
+          accuracyMeters: accuracy,
           lastGpsUpdate: 'Just now',
         };
       });

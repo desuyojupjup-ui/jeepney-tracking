@@ -34,6 +34,27 @@ export const DriverLogin: React.FC<DriverLoginProps> = ({
     setError(null);
     setIsLoading(true);
 
+    // Pre-request and cache driver's real device GPS upon login
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          try {
+            const loc = {
+              lat: pos.coords.latitude,
+              lng: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              heading: pos.coords.heading || 0,
+              speed: pos.coords.speed ? Math.round(pos.coords.speed * 3.6) : 0,
+              timestamp: Date.now()
+            };
+            localStorage.setItem('jeeptrack_driver_last_login_gps', JSON.stringify(loc));
+          } catch (e) {}
+        },
+        (err) => console.warn('Login geolocation probe:', err.message),
+        { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
+      );
+    }
+
     setTimeout(() => {
       const res = loginDriver(username, password);
       setIsLoading(false);
@@ -41,7 +62,7 @@ export const DriverLogin: React.FC<DriverLoginProps> = ({
         showToast({
           type: 'login',
           title: 'Driver Login Successful',
-          message: 'Your vehicle is online and connected to dispatch.',
+          message: 'Connecting to device GPS location & dispatch online.',
           duration: 4000,
         });
         if (onSuccess) onSuccess();
