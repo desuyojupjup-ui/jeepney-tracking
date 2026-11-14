@@ -247,11 +247,11 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
   }, [useDeviceGps, activeJeepney.id]);
 
   return (
-    <div className="max-w-md lg:max-w-5xl mx-auto px-3.5 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5 font-sans text-slate-900 dark:text-slate-100">
+    <div className="max-w-md lg:max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4 font-sans text-slate-900 dark:text-slate-100 pb-16">
       
       {/* Toast Notification when SOS is sent */}
       {sosSentToast && (
-        <div className="fixed top-20 left-4 right-4 z-50 bg-rose-600 text-white p-4 rounded-2xl shadow-2xl flex items-center gap-3.5 animate-fade-in border border-rose-400">
+        <div className="fixed top-20 left-4 right-4 z-50 bg-rose-600 text-white p-3.5 rounded-2xl shadow-2xl flex items-center gap-3 animate-fade-in border border-rose-400">
           <AlertTriangle className="w-6 h-6 text-white animate-pulse shrink-0" />
           <div className="text-xs">
             <span className="font-bold block text-sm">Emergency Alert Sent</span>
@@ -260,50 +260,43 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
         </div>
       )}
 
-      {/* Top Driver & Unit Identification Card (Spacious & Mobile-Optimized) */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl sm:rounded-3xl p-4 sm:p-5 shadow-sm dark:shadow-xl transition-colors">
-        <div className="flex flex-col xs:flex-row items-start xs:items-center justify-between gap-3 sm:gap-4">
+      {/* Top Driver & Unit Identification Card (Compact 1-Row Responsive Header) */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 sm:p-3.5 shadow-sm transition-colors">
+        <div className="flex items-center justify-between gap-2 sm:gap-3">
           
           {/* Left: Unit Badge & Driver Identification */}
-          <div className="flex items-center gap-3 min-w-0 flex-1">
-            <div className="h-11 min-w-[50px] sm:h-12 sm:min-w-[56px] px-2.5 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center font-black font-mono text-xs sm:text-sm tracking-tight text-white shadow-sm shrink-0 whitespace-nowrap">
+          <div className="flex items-center gap-2 sm:gap-2.5 min-w-0 flex-1">
+            <div className="h-9 min-w-[44px] sm:h-10 sm:min-w-[50px] px-2 rounded-xl bg-gradient-to-br from-emerald-600 to-teal-700 flex items-center justify-center font-black font-mono text-xs sm:text-sm tracking-tight text-white shadow-xs shrink-0 whitespace-nowrap">
               {activeJeepney.jeepneyCode}
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 min-w-0">
-                <h1 className="font-extrabold text-slate-900 dark:text-white text-sm sm:text-base leading-tight truncate">
+                <h1 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-sm leading-tight truncate">
                   {activeDriverName}
                 </h1>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shrink-0"></span>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400 font-mono leading-tight mt-1 truncate">
-                {currentDriver?.username ? (
-                  <>
-                    <span>@{currentDriver.username}</span>
-                    <span className="hidden sm:inline"> • Lic: {activeLicense}</span>
-                  </>
-                ) : (
-                  <span>Lic: {activeLicense}</span>
-                )}
+              <p className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 font-mono leading-tight mt-0.5 truncate">
+                {currentDriver?.username ? `@${currentDriver.username}` : `Lic: ${activeLicense}`}
               </p>
             </div>
           </div>
 
           {/* Right: Duty Status Badge & Route Info */}
-          <div className="w-full xs:w-auto flex xs:flex-col items-center xs:items-end justify-between xs:justify-center pt-2 xs:pt-0 border-t xs:border-t-0 xs:border-l border-slate-200/80 dark:border-slate-800 xs:pl-3.5">
+          <div className="text-right shrink-0 flex flex-col items-end justify-center pl-2 sm:pl-3 border-l border-slate-200/80 dark:border-slate-800">
             <button
               type="button"
               onClick={handleToggleDutyStatus}
-              className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer shadow-xs ${
+              className={`px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-black uppercase tracking-wider transition-all border whitespace-nowrap cursor-pointer shadow-xs ${
                 activeDutyStatus === 'on_duty' 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800 hover:bg-emerald-100' 
                   : 'bg-amber-50 text-amber-800 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800 hover:bg-amber-100'
               }`}
-              title="Tap to toggle Shift Status"
+              title="Tap to toggle shift status"
             >
               {activeDutyStatus === 'on_duty' ? 'ON DUTY' : 'ON BREAK'}
             </button>
-            <div className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-mono font-bold whitespace-nowrap flex items-center gap-1.5">
+            <div className="text-[10px] sm:text-[11px] text-slate-500 dark:text-slate-400 mt-1 font-mono font-bold whitespace-nowrap flex items-center gap-1">
               <span className="text-emerald-600 dark:text-emerald-400 font-semibold">PLMun</span>
               <span className="text-slate-400">⇄</span>
               <span>Alabang</span>

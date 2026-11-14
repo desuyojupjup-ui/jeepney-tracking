@@ -305,11 +305,11 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const blueFinalSegment = PLMUN_ALABANG_PATH.slice(8);
 
   return (
-    <div className="relative w-full h-[620px] sm:h-[680px] lg:h-[720px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none">
+    <div className="relative w-full h-[540px] sm:h-[620px] lg:h-[680px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none">
       
       {/* Voice Guidance Toast */}
       {voiceToast && (
-        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-[1002] bg-slate-900/95 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-2xl border border-slate-700 animate-fade-in pointer-events-none flex items-center gap-2">
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 z-[1002] bg-slate-900/95 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-2xl border border-slate-700 animate-fade-in pointer-events-none flex items-center gap-2">
           {isMuted ? <VolumeX className="w-4 h-4 text-amber-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
           <span>{voiceToast}</span>
         </div>
@@ -319,48 +319,48 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* 1. TOP WHITE CARD: CURRENT SPEED & ROUTE (SPACIOUS & MOBILE-RESPONSIVE)   */}
       {/* ========================================================================= */}
       <div className="absolute top-2.5 left-2.5 right-2.5 sm:top-3.5 sm:left-3.5 sm:right-3.5 z-[1000] pointer-events-none">
-        <div className="pointer-events-auto w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200/90 dark:border-slate-800 p-3 sm:p-4 flex items-center justify-between gap-3 sm:gap-4 transition-colors">
+        <div className="pointer-events-auto w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-lg border border-slate-200/90 dark:border-slate-800 p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 transition-colors">
           
           {/* Current Speed Section */}
-          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 shadow-xs">
-              <Gauge className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-teal-50 dark:bg-teal-950/50 border border-teal-200 dark:border-teal-800/60 flex items-center justify-center text-teal-600 dark:text-teal-400 shrink-0 shadow-xs">
+              <Gauge className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
             <div>
-              <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block leading-tight">
-                Current Speed
+              <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block leading-tight">
+                Speed
               </span>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-2xl sm:text-3xl font-black font-mono text-slate-900 dark:text-white tracking-tight leading-none">
+              <div className="flex items-baseline gap-0.5 mt-0.5">
+                <span className="text-xl sm:text-2xl font-black font-mono text-slate-900 dark:text-white tracking-tight leading-none">
                   {isTripActive ? (activeJeepney.speedKmh || 0) : 0}
                 </span>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400 font-mono">km/h</span>
+                <span className="text-[10px] font-bold text-slate-400 font-mono">km/h</span>
               </div>
             </div>
           </div>
 
           {/* Divider */}
-          <div className="h-9 sm:h-10 w-px bg-slate-200 dark:bg-slate-700 shrink-0"></div>
+          <div className="h-8 w-px bg-slate-200 dark:bg-slate-700 shrink-0 mx-0.5"></div>
 
-          {/* Route Section */}
+          {/* Route Section - Ample room so "PLMun ➔ Alabang" never truncates */}
           <div className="flex-1 min-w-0">
-            <span className="text-[10px] sm:text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider block truncate leading-tight">
+            <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-400 uppercase tracking-wider block leading-tight">
               Route:
             </span>
-            <div className="mt-1">
+            <div className="mt-0.5">
               <button
                 type="button"
                 onClick={onToggleDirection}
-                className="w-full flex items-center justify-between gap-1.5 text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100 py-1.5 px-2.5 sm:px-3 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 shadow-xs transition-all active:scale-[0.98] cursor-pointer"
-                title="Tap to change route"
+                className="w-full flex items-center justify-between gap-1 text-xs sm:text-sm font-extrabold text-slate-900 dark:text-slate-100 py-1 px-2 rounded-xl bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 shadow-2xs transition-all active:scale-[0.98] cursor-pointer"
+                title="Tap to switch route direction"
               >
-                <div className="flex items-center gap-1.5 min-w-0 truncate">
+                <div className="flex items-center gap-1.5 min-w-0">
                   <ArrowRightLeft className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400 shrink-0" />
-                  <span className="truncate">
+                  <span className="truncate font-extrabold">
                     {direction === 'PLMun_to_Alabang' ? 'PLMun ➔ Alabang' : 'Alabang ➔ PLMun'}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/80 px-2 py-0.5 rounded-md border border-teal-200 dark:border-teal-800/80 shrink-0">
+                <span className="text-[9px] font-bold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/80 px-1.5 py-0.5 rounded border border-teal-200 dark:border-teal-800/80 shrink-0">
                   Switch
                 </span>
               </button>
@@ -546,46 +546,48 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       </MapContainer>
 
       {/* ========================================================================= */}
-      {/* 4. BOTTOM-LEFT FLOATING SPEEDOMETER (Circular white widget like image)     */}
+      {/* 4. BOTTOM-LEFT FLOATING SPEEDOMETER (Circular widget)                     */}
       {/* ========================================================================= */}
-      <div className="absolute bottom-36 sm:bottom-40 left-3.5 sm:left-4 z-[1000] pointer-events-none">
-        <div className="pointer-events-auto w-15 h-15 sm:w-16 sm:h-16 rounded-full bg-white dark:bg-slate-900 shadow-[0_6px_20px_rgba(0,0,0,0.22)] border border-slate-200/90 dark:border-slate-800 flex flex-col items-center justify-center text-slate-900 dark:text-white">
-          <span className="text-xl sm:text-2xl font-black font-mono leading-none tracking-tight">
+      <div className="absolute bottom-36 left-3 z-[1000] pointer-events-none">
+        <div className="pointer-events-auto w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-white dark:bg-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.18)] border border-slate-200/90 dark:border-slate-800 flex flex-col items-center justify-center text-slate-900 dark:text-white">
+          <span className="text-lg sm:text-xl font-black font-mono leading-none tracking-tight">
             {isTripActive ? (activeJeepney.speedKmh || '--') : '--'}
           </span>
-          <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+          <span className="text-[8px] font-bold text-slate-400 font-mono mt-0.5">
             km/h
           </span>
         </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 5. BOTTOM NAVIGATION SHEET (Matches the white bottom drawer in image)     */}
+      {/* 5. BOTTOM NAVIGATION SHEET (Compact, Responsive, Never Cuts Off)          */}
       {/* ========================================================================= */}
       <div className="absolute bottom-0 left-0 right-0 z-[1001] pointer-events-none">
-        <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[28px] sm:rounded-t-[32px] shadow-[0_-8px_32px_rgba(0,0,0,0.2)] border-t border-slate-200/80 dark:border-slate-800 p-4 sm:p-5 transition-all duration-300">
+        <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-t-[30px] shadow-[0_-6px_28px_rgba(0,0,0,0.15)] border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 max-h-[85%] overflow-y-auto transition-all duration-300">
           
           {/* Top Pull Handle Bar */}
           <div 
             onClick={() => setBottomSheetExpanded(!bottomSheetExpanded)}
-            className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-3.5 cursor-pointer hover:bg-slate-400 transition-colors"
+            className="w-10 h-1 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-2.5 cursor-pointer hover:bg-slate-400 transition-colors"
           />
 
-          {/* Primary Navigation Row (ETA, Distance, Exit Button) */}
-          <div className="flex items-center justify-between gap-3">
+          {/* Primary Navigation Row (ETA, Distance, Start/End Trip Button) */}
+          <div className="flex items-center justify-between gap-2">
             
-            {/* Left: Time Remaining + Distance & Arrival Time */}
+            {/* Left: Time Remaining + Distance & Arrival Time (Single Line, Never Wraps) */}
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl sm:text-3xl font-black text-[#D32F2F] tracking-tight">
-                  {isTripActive ? `${etaMinutes} min` : 'Parked / Ready'}
+              <div className="flex items-baseline gap-1.5 whitespace-nowrap">
+                <span className={`text-xl sm:text-2xl font-black tracking-tight ${
+                  isTripActive ? 'text-[#D32F2F]' : 'text-emerald-600 dark:text-emerald-400'
+                }`}>
+                  {isTripActive ? `${etaMinutes} min` : 'Ready'}
                 </span>
-                <span className="text-xs sm:text-sm text-slate-500 font-semibold truncate">
+                <span className="text-xs text-slate-500 font-semibold truncate">
                   ({activeJeepney.distanceRemainingKm || 2.1} km)
                 </span>
               </div>
               
-              <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium truncate">
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 font-medium whitespace-nowrap">
                 <span>Arrival: <strong className="text-slate-800 dark:text-slate-200">{arrivalTime}</strong></span>
                 <span>•</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold flex items-center gap-1 shrink-0">
@@ -595,22 +597,19 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
               </div>
             </div>
 
-            {/* Right: Alternative Routes Button + Red "Exit" / "End Trip" Button */}
-            <div className="flex items-center gap-2 shrink-0">
-              
-              {/* Route Alternative / Direction Switcher */}
+            {/* Right: Trip Options Toggle & Start / End Trip Button */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <button
                 onClick={() => setBottomSheetExpanded(!bottomSheetExpanded)}
-                className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-xs transition-all shrink-0 cursor-pointer"
+                className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 flex items-center justify-center border border-slate-200 dark:border-slate-700 shadow-2xs transition-all shrink-0 cursor-pointer"
                 title="Trip options"
               >
-                <ArrowUpDown className="w-4 h-4 text-slate-700 dark:text-slate-300" />
+                <ArrowUpDown className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
               </button>
 
-              {/* Start / End Trip Button */}
               <button
                 onClick={onToggleTrip}
-                className={`px-4 sm:px-6 py-2.5 sm:py-3.5 rounded-2xl font-black text-xs sm:text-sm text-white shadow-md transition-all active:scale-95 flex items-center justify-center text-center cursor-pointer shrink-0 leading-tight ${
+                className={`px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl font-black text-xs sm:text-sm text-white shadow-sm transition-all active:scale-95 flex items-center justify-center text-center cursor-pointer shrink-0 leading-tight ${
                   isTripActive
                     ? 'bg-[#D32F2F] hover:bg-[#B71C1C] shadow-red-600/30'
                     : 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/30 animate-pulse'
@@ -621,33 +620,33 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
             </div>
           </div>
 
-          {/* Quick In-Cab Driver Controls Strip: Fully Mobile-Responsive & Spacious */}
-          <div className="mt-3.5 pt-3.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+          {/* Quick In-Cab Driver Controls Strip: Fits Beautifully on Mobile */}
+          <div className="mt-2.5 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
             
-            {/* Passenger Load Counter with Big Touch Targets & Spacious Layout */}
-            <div className="flex items-center gap-2">
+            {/* Passenger Load Counter */}
+            <div className="flex items-center gap-1.5">
               <button
                 onClick={() => onPassengerChange && onPassengerChange(-1)}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/80 dark:hover:bg-rose-900 border border-rose-300 dark:border-rose-800 text-rose-700 dark:text-rose-200 font-black text-sm active:scale-95 cursor-pointer shadow-xs flex items-center justify-center transition-all"
+                className="w-8 h-8 rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-200 border border-rose-300 dark:border-rose-800 font-black text-sm active:scale-95 cursor-pointer shadow-2xs flex items-center justify-center transition-all"
                 title="Passenger Alighting"
                 aria-label="Decrease passenger count"
               >
                 –
               </button>
               
-              <div className="px-2 text-center min-w-[70px]">
-                <span className="text-[10px] text-slate-400 dark:text-slate-400 font-bold uppercase tracking-wider block leading-none mb-0.5">
+              <div className="px-1 text-center min-w-[65px]">
+                <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block leading-none">
                   Passengers
                 </span>
-                <span className="font-black font-mono text-base sm:text-lg text-slate-900 dark:text-white leading-none">
+                <span className="font-black font-mono text-base text-slate-900 dark:text-white leading-none mt-0.5 block">
                   {activeJeepney.currentPassengers}
-                  <span className="text-xs text-slate-400 font-normal"> / {activeJeepney.capacity}</span>
+                  <span className="text-[11px] text-slate-400 font-normal">/{activeJeepney.capacity}</span>
                 </span>
               </div>
 
               <button
                 onClick={() => onPassengerChange && onPassengerChange(1)}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/80 dark:hover:bg-emerald-900 border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-200 font-black text-sm active:scale-95 cursor-pointer shadow-xs flex items-center justify-center transition-all"
+                className="w-8 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-800 font-black text-sm active:scale-95 cursor-pointer shadow-2xs flex items-center justify-center transition-all"
                 title="Passenger Boarding"
                 aria-label="Increase passenger count"
               >
@@ -655,11 +654,11 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
               </button>
             </div>
 
-            {/* Quick Shift Status Badge */}
+            {/* Shift Status Badge */}
             {onToggleDutyStatus && (
               <button
                 onClick={onToggleDutyStatus}
-                className={`px-3.5 py-2 rounded-xl text-xs font-black uppercase tracking-wider border cursor-pointer active:scale-95 transition-all shadow-xs shrink-0 whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase tracking-wider border cursor-pointer active:scale-95 transition-all shadow-2xs shrink-0 whitespace-nowrap ${
                   activeDutyStatus === 'on_duty'
                     ? 'bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700'
                     : 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
@@ -671,30 +670,28 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
             )}
           </div>
 
-          {/* Expandable Cockpit Details (Opened by clicking the pull bar or arrow) */}
+          {/* Expandable Cockpit Details */}
           {bottomSheetExpanded && (
-            <div className="mt-4 pt-3.5 border-t border-slate-100 dark:border-slate-800 space-y-3 animate-fade-in text-xs">
-              <div className="grid grid-cols-2 gap-2.5 text-xs">
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 block font-semibold text-[11px]">Driver</span>
-                  <strong className="text-slate-900 dark:text-white text-xs sm:text-sm">{activeDriverName}</strong>
+            <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 space-y-2 animate-fade-in text-xs">
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-400 block font-semibold text-[10px]">Driver</span>
+                  <strong className="text-slate-900 dark:text-white text-xs truncate block">{activeDriverName}</strong>
                 </div>
-                <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
-                  <span className="text-slate-400 block font-semibold text-[11px]">License</span>
-                  <strong className="text-slate-900 dark:text-white font-mono text-xs sm:text-sm">{activeLicense}</strong>
+                <div className="p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                  <span className="text-slate-400 block font-semibold text-[10px]">License</span>
+                  <strong className="text-slate-900 dark:text-white font-mono text-xs truncate block">{activeLicense}</strong>
                 </div>
               </div>
 
-              <div className="flex gap-2 pt-1">
-                {onEndShift && (
-                  <button
-                    onClick={onEndShift}
-                    className="w-full py-3 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs transition-colors cursor-pointer"
-                  >
-                    End Shift
-                  </button>
-                )}
-              </div>
+              {onEndShift && (
+                <button
+                  onClick={onEndShift}
+                  className="w-full py-2 px-3 rounded-xl bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-900 font-bold text-xs transition-colors cursor-pointer"
+                >
+                  End Shift & Sign Out
+                </button>
+              )}
             </div>
           )}
         </div>

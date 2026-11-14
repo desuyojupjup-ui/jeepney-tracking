@@ -323,7 +323,7 @@ function AppContent() {
           />
 
           {/* Main Content Area */}
-          <main className={`flex-1 relative isolate ${currentRole === 'commuter' || currentRole === 'driver' ? 'overflow-hidden' : currentRole === 'landing' ? 'pb-0' : 'pb-12'}`}>
+          <main className={`flex-1 relative isolate ${currentRole === 'commuter' ? 'overflow-hidden' : 'overflow-y-auto min-h-0'} ${currentRole === 'landing' ? 'pb-0' : 'pb-12'}`}>
             
             {/* LANDING PAGE (Smart Campus Transit Overview) */}
             {currentRole === 'landing' && (
