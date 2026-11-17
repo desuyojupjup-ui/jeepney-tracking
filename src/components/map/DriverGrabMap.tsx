@@ -376,7 +376,11 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* ========================================================================= */}
       {/* 1. TOP WHITE CARD: CURRENT SPEED & ROUTE (SPACIOUS & MOBILE-RESPONSIVE)   */}
       {/* ========================================================================= */}
-      <div className="absolute top-2.5 left-2.5 right-2.5 sm:top-3.5 sm:left-3.5 sm:right-3.5 z-[1000] pointer-events-none">
+      <div
+        className={`absolute left-2.5 right-2.5 sm:left-3.5 sm:right-3.5 z-[1005] pointer-events-none ${
+          isFullScreen ? 'top-[max(0.75rem,env(safe-area-inset-top))] sm:top-4' : 'top-2.5 sm:top-3.5'
+        }`}
+      >
         <div className="pointer-events-auto w-full bg-white dark:bg-slate-900 text-slate-900 dark:text-white rounded-2xl shadow-lg border border-slate-200/90 dark:border-slate-800 p-2.5 sm:p-3.5 flex items-center justify-between gap-2.5 transition-colors">
           
           {/* Current Speed Section */}
@@ -430,7 +434,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* ========================================================================= */}
       {/* 2. TOP-RIGHT MAP CONTROLS (FULL SCREEN, LAYER TOGGLE & RECENTER GPS)      */}
       {/* ========================================================================= */}
-      <div className="absolute top-24 sm:top-28 right-3 sm:right-3.5 z-[1000] flex flex-col items-end gap-2 pointer-events-none">
+      <div className="absolute top-24 sm:top-28 right-3 sm:right-3.5 z-[1005] flex flex-col items-end gap-2 pointer-events-none">
         <button
           type="button"
           onClick={() => setIsFullScreen((prev) => !prev)}
@@ -674,7 +678,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* ========================================================================= */}
       {/* 4. BOTTOM-LEFT FLOATING SPEEDOMETER (Circular widget)                     */}
       {/* ========================================================================= */}
-      <div className="absolute bottom-36 left-3 z-[1000] pointer-events-none">
+      <div className="absolute bottom-36 left-3 z-[1004] pointer-events-none">
         <div className="pointer-events-auto w-13 h-13 sm:w-15 sm:h-15 rounded-full bg-white dark:bg-slate-900 shadow-[0_4px_16px_rgba(0,0,0,0.18)] border border-slate-200/90 dark:border-slate-800 flex flex-col items-center justify-center text-slate-900 dark:text-white">
           <span className="text-lg sm:text-xl font-black font-mono leading-none tracking-tight">
             {isTripActive ? (activeJeepney.speedKmh || '--') : '--'}
@@ -688,8 +692,12 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       {/* ========================================================================= */}
       {/* 5. BOTTOM NAVIGATION SHEET (Compact, Responsive, Never Cuts Off)          */}
       {/* ========================================================================= */}
-      <div className="absolute bottom-0 left-0 right-0 z-[1001] pointer-events-none">
-        <div className="pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-t-[30px] shadow-[0_-6px_28px_rgba(0,0,0,0.15)] border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 max-h-[85%] overflow-y-auto pb-6 sm:pb-4 transition-all duration-300">
+      <div className="absolute bottom-0 left-0 right-0 z-[1005] pointer-events-none">
+        <div
+          className={`pointer-events-auto bg-white dark:bg-slate-900 rounded-t-[24px] sm:rounded-t-[30px] shadow-[0_-6px_28px_rgba(0,0,0,0.15)] border-t border-slate-200/80 dark:border-slate-800 p-3 sm:p-4 max-h-[85%] overflow-y-auto transition-all duration-300 ${
+            isFullScreen ? 'pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:pb-5' : 'pb-6 sm:pb-4'
+          }`}
+        >
           
           {/* Top Pull Handle Bar */}
           <div 
