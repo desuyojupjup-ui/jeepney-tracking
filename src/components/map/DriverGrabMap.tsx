@@ -34,7 +34,9 @@ import {
   ChevronUp,
   ChevronDown,
   Gauge,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 interface DriverGrabMapProps {
@@ -82,11 +84,19 @@ function DriverNavController({
     };
   }, [map, setIsAutoFollowActive]);
 
+  const getOffsetTarget = (latLng: [number, number]) => {
+    // Shift camera target slightly south in screen space so the vehicle stays centered cleanly above the bottom drawer
+    const zoom = map.getZoom();
+    const pt = map.project(L.latLng(latLng[0], latLng[1]), zoom);
+    pt.y += 55;
+    return map.unproject(pt, zoom);
+  };
+
   useEffect(() => {
     if (!isAutoFollowActive) return;
 
     // Immediately pan to vehicle when auto-follow is active or restored
-    map.panTo(coords, {
+    map.panTo(getOffsetTarget(coords), {
       animate: true,
       duration: 0.6,
       easeLinearity: 0.25,
@@ -101,11 +111,12 @@ function DriverNavController({
     if (lastPanRef.current === key) return;
     lastPanRef.current = key;
 
+    const target = getOffsetTarget(coords);
     const currentCenter = map.getCenter();
-    const distance = map.distance(currentCenter, L.latLng(coords[0], coords[1]));
+    const distance = map.distance(currentCenter, target);
 
-    if (distance > 15) {
-      map.panTo(coords, {
+    if (distance > 12) {
+      map.panTo(target, {
         animate: true,
         duration: 0.8,
         easeLinearity: 0.25,
@@ -116,26 +127,34 @@ function DriverNavController({
   return null;
 }
 
-// Leaflet Resize Handler
-function MapResizer() {
+// Leaflet Resize Handler (triggers clean relayout on viewport changes and fullscreen toggles)
+function MapResizer({ isFullScreen }: { isFullScreen: boolean }) {
   const map = useMap();
 
   useEffect(() => {
     map.invalidateSize();
     const t1 = setTimeout(() => map.invalidateSize(), 80);
-    const t2 = setTimeout(() => map.invalidateSize(), 300);
-    const t3 = setTimeout(() => map.invalidateSize(), 800);
+    const t2 = setTimeout(() => map.invalidateSize(), 260);
+    const t3 = setTimeout(() => map.invalidateSize(), 650);
 
     const handleResize = () => map.invalidateSize();
     window.addEventListener('resize', handleResize);
+
+    const container = map.getContainer();
+    let ro: ResizeObserver | null = null;
+    if (typeof ResizeObserver !== 'undefined' && container) {
+      ro = new ResizeObserver(() => map.invalidateSize());
+      ro.observe(container);
+    }
 
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
       clearTimeout(t3);
       window.removeEventListener('resize', handleResize);
+      if (ro) ro.disconnect();
     };
-  }, [map]);
+  }, [map, isFullScreen]);
 
   return null;
 }
@@ -165,10 +184,28 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const [voiceToast, setVoiceToast] = useState<string | null>(null);
   const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false);
   const [mapLayer, setMapLayer] = useState<'streets' | 'satellite'>('streets');
+  const [isFullScreen, setIsFullScreen] = useState(false);
+
+  // Lock body scroll & support Escape key when Full-Screen Map is active
+  useEffect(() => {
+    if (!isFullScreen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsFullScreen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isFullScreen]);
 
   const vehicleCoords: [number, number] = [
-    activeJeepney.currentLat || 14.3854,
-    activeJeepney.currentLng || 121.0422,
+    activeJeepney.currentLat || 14.38909,
+    activeJeepney.currentLng || 121.02559,
   ];
 
   // Recenter camera on the driver vehicle
@@ -196,7 +233,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
     ? `${(activeJeepney.distanceRemainingKm * 1000 > 1000) 
         ? `${activeJeepney.distanceRemainingKm.toFixed(1)} km` 
         : `${Math.round(activeJeepney.distanceRemainingKm * 1000)} m`}`
-    : '2 km';
+    : '6.8 km';
 
   const etaMinutes = activeJeepney.etaMinutes || 22;
 
@@ -216,12 +253,11 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
 
     return L.divIcon({
       html: `
-        <div class="relative flex flex-col items-center justify-center pointer-events-auto" style="width: 76px; height: 76px; will-change: transform; transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden;">
+        <div class="relative flex items-center justify-center pointer-events-auto" style="width: 76px; height: 76px; will-change: transform; transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden;">
           
-          <!-- Soft Pulsing Radar Glow when moving (Non-strobe) -->
-          ${isTripActive ? `
-            <div class="absolute w-16 h-16 rounded-full bg-emerald-500/20 pointer-events-none animate-pulse" style="animation-duration: 2s;"></div>
-          ` : ''}
+          <!-- Exact GPS Coordinate Center Anchor Halo (centered strictly on iconAnchor [38,38]) -->
+          <div class="absolute w-14 h-14 rounded-full border-2 ${isTripActive ? 'border-emerald-500/45 bg-emerald-500/15 animate-pulse' : 'border-blue-500/40 bg-blue-500/15'} pointer-events-none" style="animation-duration: 2.2s;"></div>
+          <div class="absolute w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow-sm pointer-events-none z-10"></div>
 
           <!-- Floating Unit Code Badge -->
           <div class="absolute -top-3.5 z-30 flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-900/90 text-white border border-slate-700 shadow-md text-[9px] font-black font-mono tracking-tight whitespace-nowrap">
@@ -229,8 +265,8 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
             <span>${activeJeepney.jeepneyCode}</span>
           </div>
 
-          <!-- USER CUSTOM JEEPNEY / VEHICLE (ROTATED TO HEADING) -->
-          <div style="transform: rotate(${headingDeg - 90}deg); transform-origin: center center; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden;" class="w-full h-full flex items-center justify-center pointer-events-none">
+          <!-- USER CUSTOM JEEPNEY / VEHICLE (CENTERED & ROTATED TO HEADING) -->
+          <div style="transform: rotate(${headingDeg - 90}deg); transform-origin: center center; will-change: transform; backface-visibility: hidden; -webkit-backface-visibility: hidden;" class="relative z-20 w-full h-full flex items-center justify-center pointer-events-none">
             <img 
               src="/jeepney.png" 
               alt="${activeJeepney.jeepneyCode}"
@@ -310,18 +346,24 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
     });
   };
 
-  // Multi-colored Route Segments (Manila South Rd):
-  // 1. Blue segment (Smooth flow): PLMun to Putatan
-  const blueSegment = PLMUN_ALABANG_PATH.slice(0, 4);
-  // 2. Red congested segment: Near Muntinlupa City Hall / Soldiers Hills (matches the reference red segment)
-  const redSegment = PLMUN_ALABANG_PATH.slice(3, 7);
-  // 3. Yellow moderate segment: SM Center to Bayanan
-  const yellowSegment = PLMUN_ALABANG_PATH.slice(6, 9);
-  // 4. Blue final segment: Bayanan to Alabang South Station
-  const blueFinalSegment = PLMUN_ALABANG_PATH.slice(8);
+  // Multi-colored Route Segments along Official OSRM Corridor (PLMun -> University Rd -> Katihan -> National Rd -> Alabang):
+  // 1. Blue segment (Smooth flow): PLMun University Terminal through National Rd Putatan
+  const blueSegment = PLMUN_ALABANG_PATH.slice(0, 22);
+  // 2. Red congested segment: Muntinlupa City Hall Complex / Soldiers Hills
+  const redSegment = PLMUN_ALABANG_PATH.slice(21, 28);
+  // 3. Yellow moderate segment: Soldiers Hills to Bayanan Public Market
+  const yellowSegment = PLMUN_ALABANG_PATH.slice(27, 36);
+  // 4. Blue final segment: Bayanan to Alabang South Station Terminal
+  const blueFinalSegment = PLMUN_ALABANG_PATH.slice(35);
 
   return (
-    <div className="relative w-full h-[500px] xs:h-[520px] sm:h-[600px] lg:h-[660px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none">
+    <div
+      className={
+        isFullScreen
+          ? 'fixed inset-0 z-[9999] w-screen h-[100dvh] rounded-none border-0 shadow-none bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none overflow-hidden'
+          : 'relative w-full h-[500px] xs:h-[520px] sm:h-[600px] lg:h-[660px] rounded-3xl overflow-hidden border border-slate-200/90 dark:border-slate-800 shadow-2xl bg-[#E8ECEF] dark:bg-[#12161A] font-sans select-none'
+      }
+    >
       
       {/* Voice Guidance Toast */}
       {voiceToast && (
@@ -386,19 +428,51 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. RECENTER GPS BUTTON (Only shown when driver pans away from vehicle)     */}
+      {/* 2. TOP-RIGHT MAP CONTROLS (FULL SCREEN, LAYER TOGGLE & RECENTER GPS)      */}
       {/* ========================================================================= */}
-      {!isAutoFollowActive && (
-        <div className="absolute top-28 right-3.5 z-[1000] pointer-events-none">
+      <div className="absolute top-24 sm:top-28 right-3 sm:right-3.5 z-[1000] flex flex-col items-end gap-2 pointer-events-none">
+        <button
+          type="button"
+          onClick={() => setIsFullScreen((prev) => !prev)}
+          className="pointer-events-auto h-10 px-3 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-800 dark:text-slate-100 shadow-lg border border-slate-200/90 dark:border-slate-700 flex items-center justify-center gap-1.5 hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer text-xs font-extrabold"
+          title={isFullScreen ? 'Exit full screen map' : 'View map in full screen'}
+          aria-label={isFullScreen ? 'Exit full screen map' : 'Open full screen map'}
+        >
+          {isFullScreen ? (
+            <>
+              <Minimize2 className="w-4 h-4 text-rose-600 dark:text-rose-400" />
+              <span>Exit Full Screen</span>
+            </>
+          ) : (
+            <>
+              <Maximize2 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+              <span className="hidden xs:inline">Full Screen</span>
+            </>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMapLayer((prev) => (prev === 'streets' ? 'satellite' : 'streets'))}
+          className="pointer-events-auto w-10 h-10 rounded-xl bg-white/95 dark:bg-slate-900/95 backdrop-blur-md text-slate-700 dark:text-slate-200 shadow-lg border border-slate-200/90 dark:border-slate-700 flex items-center justify-center hover:bg-slate-50 dark:hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+          title={mapLayer === 'streets' ? 'Switch to Satellite View' : 'Switch to Street View'}
+          aria-label="Toggle map layer"
+        >
+          <Layers className="w-4 h-4" />
+        </button>
+
+        {!isAutoFollowActive && (
           <button
+            type="button"
             onClick={handleRecenter}
-            className="pointer-events-auto w-12 h-12 rounded-full bg-[#1A73E8] text-white shadow-[0_4px_16px_rgba(26,115,232,0.45)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all animate-bounce"
-            title="Recenter on vehicle"
+            className="pointer-events-auto w-11 h-11 rounded-full bg-[#1A73E8] text-white shadow-[0_4px_16px_rgba(26,115,232,0.45)] flex items-center justify-center hover:scale-105 active:scale-95 transition-all animate-bounce cursor-pointer"
+            title="Recenter on your jeepney"
+            aria-label="Recenter map on vehicle"
           >
             <LocateFixed className="w-5 h-5 animate-pulse" />
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* ========================================================================= */}
       {/* 3. INTERACTIVE LEAFLET ROAD MAP CANVAS                                    */}
@@ -411,7 +485,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
         className="w-full h-full z-0"
         style={{ width: '100%', height: '100%' }}
       >
-        <MapResizer />
+        <MapResizer isFullScreen={isFullScreen} />
         <DriverNavController 
           coords={vehicleCoords} 
           heading={activeJeepney.heading || 0} 
@@ -499,13 +573,36 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
         />
 
         {/* Highway 163 / National Rd Shields along route */}
-        <Marker position={[14.3940, 121.0440]} icon={createHighwayShieldIcon('163')} />
-        <Marker position={[14.4095, 121.0478]} icon={createHighwayShieldIcon('163')} />
+        <Marker position={[14.39429, 121.04482]} icon={createHighwayShieldIcon('163')} />
+        <Marker position={[14.40933, 121.04637]} icon={createHighwayShieldIcon('163')} />
 
-        {/* Hazard Speech Balloon Pins placed along route (like in reference picture) */}
+        {/* PLMun Campus Origin & Alabang South Station Endpoint Markers */}
+        {terminals.map((term) => (
+          <Circle
+            key={term.id}
+            center={[term.lat, term.lng]}
+            radius={term.radiusMeters}
+            pathOptions={{
+              color: term.code === 'PLMUN' ? '#10B981' : '#EF4444',
+              fillColor: term.code === 'PLMUN' ? '#10B981' : '#EF4444',
+              fillOpacity: 0.14,
+              weight: 2,
+              dashArray: '5, 5',
+            }}
+          >
+            <Popup>
+              <div className="p-1 text-xs font-sans">
+                <span className="font-bold text-slate-900">{term.name}</span>
+                <p className="text-[11px] text-slate-600">{term.locationDescription}</p>
+              </div>
+            </Popup>
+          </Circle>
+        ))}
+
+        {/* Hazard Speech Balloon Pins placed strictly along National Road */}
         {/* 1. Heavy traffic congestion pin */}
         <Marker 
-          position={[14.3965, 121.0446]} 
+          position={[14.39687, 121.04505]} 
           icon={createHazardPinIcon('traffic')}
         >
           <Popup>
@@ -518,29 +615,42 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
 
         {/* 2. Road puddle / flood alert pin */}
         <Marker 
-          position={[14.3985, 121.0450]} 
+          position={[14.39907, 121.04630]} 
           icon={createHazardPinIcon('flood')}
         >
           <Popup>
             <div className="p-1 text-xs">
               <span className="font-bold text-amber-700">Puddle Warning</span>
-              <p className="text-[11px] text-slate-600">Water runoff reported along curb</p>
+              <p className="text-[11px] text-slate-600">Water runoff reported along curb near Soldiers Hills</p>
             </div>
           </Popup>
         </Marker>
 
         {/* 3. Vehicle breakdown / obstruction pin */}
         <Marker 
-          position={[14.4025, 121.0465]} 
+          position={[14.40545, 121.04683]} 
           icon={createHazardPinIcon('breakdown')}
         >
           <Popup>
             <div className="p-1 text-xs">
               <span className="font-bold text-rose-700">Vehicle Breakdown</span>
-              <p className="text-[11px] text-slate-600">Disabled vehicle on right shoulder near SM Center</p>
+              <p className="text-[11px] text-slate-600">Disabled vehicle on right shoulder near Bayanan South</p>
             </div>
           </Popup>
         </Marker>
+
+        {/* Exact GPS Accuracy Radius & Pinpoint Lock Under Vehicle */}
+        <Circle
+          center={vehicleCoords}
+          radius={Math.min(60, Math.max(8, activeJeepney.accuracyMeters || 12))}
+          pathOptions={{
+            color: '#1A73E8',
+            fillColor: '#1A73E8',
+            fillOpacity: 0.14,
+            weight: 1.5,
+            opacity: 0.55,
+          }}
+        />
 
         {/* ACTIVE RED 3D DRIVER VEHICLE (YOU) */}
         <Marker
@@ -599,7 +709,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
                   {isTripActive ? `${etaMinutes} min` : 'Parked / Ready'}
                 </span>
                 <span className="text-xs text-slate-500 font-semibold truncate">
-                  ({activeJeepney.distanceRemainingKm || 2.1} km)
+                  ({activeJeepney.distanceRemainingKm || 6.8} km)
                 </span>
               </div>
               

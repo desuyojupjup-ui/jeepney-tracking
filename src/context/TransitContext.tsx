@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { 
   Jeepney, 
   Terminal, 
@@ -46,8 +46,8 @@ interface TransitContextType {
   updateJeepneyLocation: (id: string, lat: number, lng: number, speed?: number, heading?: number, accuracy?: number) => void;
   
   // Trip actions (from Driver Console / Control Center)
-  startTrip: (jeepneyId: string, direction?: TripDirection) => void;
-  endTrip: (jeepneyId: string) => void;
+  startTrip: (jeepneyId: string, direction?: TripDirection, options?: { preserveLocation?: boolean }) => void;
+  endTrip: (jeepneyId: string, options?: { preserveLocation?: boolean }) => void;
   
   // Alert actions
   triggerSosAlert: (jeepneyId: string, driverName: string, message: string, type?: AlertType, severity?: AlertSeverity) => void;
@@ -72,13 +72,13 @@ interface TransitContextType {
 
 const TransitContext = createContext<TransitContextType | undefined>(undefined);
 
-// Storage keys
-const STORAGE_JEEPNEYS = 'jeeptrack_fleet_units_v3';
+// Storage keys (v4/v2 ensure clean migration to road-aligned PLMun route & 6-stop official sequence)
+const STORAGE_JEEPNEYS = 'jeeptrack_fleet_units_v4';
 const STORAGE_ALERTS = 'jeeptrack_active_alerts_v3';
 const STORAGE_GEOFENCE = 'jeeptrack_geofence_events_v3';
 const STORAGE_TRIPS = 'jeeptrack_completed_trips_v3';
 const STORAGE_FARE_CONFIG = 'jeeptrack_fare_config_v1';
-const STORAGE_ROUTE_STOPS = 'jeeptrack_route_stops_v1';
+const STORAGE_ROUTE_STOPS = 'jeeptrack_route_stops_v2';
 
 export const DEFAULT_FARE_CONFIG: FareConfig = {
   baseFareRegular: 13.00,
@@ -100,11 +100,11 @@ const INITIAL_FLEET: Jeepney[] = [
     capacity: 22,
     currentPassengers: 0,
     status: 'offline',
-    assignedDriverId: 'drv-01',
+    assignedDriverId: 'drv-04',
     driverName: 'Eduardo Reyes',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 3.5,
     lastGpsUpdate: 'Offline',
@@ -122,11 +122,11 @@ const INITIAL_FLEET: Jeepney[] = [
     capacity: 20,
     currentPassengers: 0,
     status: 'offline',
-    assignedDriverId: 'drv-02',
+    assignedDriverId: 'drv-01',
     driverName: 'Juan Dela Cruz',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 3.8,
     lastGpsUpdate: 'Offline',
@@ -146,9 +146,9 @@ const INITIAL_FLEET: Jeepney[] = [
     status: 'offline',
     assignedDriverId: 'drv-03',
     driverName: 'Rodrigo Santos',
-    currentLat: 14.4215,
-    currentLng: 121.0445,
-    heading: 270,
+    currentLat: 14.42076,
+    currentLng: 121.04357,
+    heading: 209,
     speedKmh: 0,
     accuracyMeters: 4.1,
     lastGpsUpdate: 'Offline',
@@ -166,11 +166,11 @@ const INITIAL_FLEET: Jeepney[] = [
     capacity: 24,
     currentPassengers: 0,
     status: 'offline',
-    assignedDriverId: 'drv-04',
+    assignedDriverId: 'drv-02',
     driverName: 'Danilo Bautista',
-    currentLat: 14.4215,
-    currentLng: 121.0445,
-    heading: 270,
+    currentLat: 14.42076,
+    currentLng: 121.04357,
+    heading: 209,
     speedKmh: 0,
     accuracyMeters: 3.2,
     lastGpsUpdate: 'Offline',
@@ -190,9 +190,9 @@ const INITIAL_FLEET: Jeepney[] = [
     status: 'offline',
     assignedDriverId: 'drv-05',
     driverName: 'Antonio Cruz',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 3.7,
     lastGpsUpdate: 'Offline',
@@ -210,11 +210,11 @@ const INITIAL_FLEET: Jeepney[] = [
     capacity: 22,
     currentPassengers: 0,
     status: 'offline',
-    assignedDriverId: 'drv-06',
+    assignedDriverId: 'drv-03',
     driverName: 'Nestor Ramos',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 5.0,
     lastGpsUpdate: 'Offline',
@@ -234,9 +234,9 @@ const INITIAL_FLEET: Jeepney[] = [
     status: 'offline',
     assignedDriverId: undefined,
     driverName: 'Standby Relief Driver',
-    currentLat: 14.4215,
-    currentLng: 121.0445,
-    heading: 270,
+    currentLat: 14.42076,
+    currentLng: 121.04357,
+    heading: 209,
     speedKmh: 0,
     accuracyMeters: 4.5,
     lastGpsUpdate: 'Offline',
@@ -256,9 +256,9 @@ const INITIAL_FLEET: Jeepney[] = [
     status: 'offline',
     assignedDriverId: undefined,
     driverName: 'Standby Relief Driver',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 4.0,
     lastGpsUpdate: 'Offline',
@@ -321,7 +321,12 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [stops, setStops] = useState<RouteStop[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_ROUTE_STOPS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as RouteStop[];
+        if (Array.isArray(parsed) && parsed.length === MOCK_ROUTE.stops.length && !parsed.some(s => /sm center|sm muntinlupa/i.test(s.name))) {
+          return parsed;
+        }
+      }
     } catch (e) {}
     return MOCK_ROUTE.stops;
   });
@@ -473,13 +478,13 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const updateJeepney = (id: string, updates: Partial<Jeepney>) => {
+  const updateJeepney = useCallback((id: string, updates: Partial<Jeepney>) => {
     setJeepneys((prev) => {
       const next = prev.map((j) => (j.id === id ? { ...j, ...updates } : j));
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
-  };
+  }, []);
 
   const deleteJeepney = (id: string) => {
     setJeepneys((prev) => {
@@ -500,7 +505,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const updateJeepneyLocation = (id: string, lat: number, lng: number, speed = 25, heading = 0, accuracy = 4.0) => {
+  const updateJeepneyLocation = useCallback((id: string, lat: number, lng: number, speed = 25, heading = 0, accuracy = 4.0) => {
     setJeepneys((prev) => {
       const next = prev.map(j => {
         if (j.id !== id) return j;
@@ -517,12 +522,16 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
-  };
+  }, []);
 
   // ---------------------------------------------------------------------------
   // TRIP WORKFLOW (Driver In-Cab Console)
   // ---------------------------------------------------------------------------
-  const startTrip = (jeepneyId: string, direction: TripDirection = 'PLMun_to_Alabang') => {
+  const startTrip = (
+    jeepneyId: string,
+    direction: TripDirection = 'PLMun_to_Alabang',
+    options?: { preserveLocation?: boolean }
+  ) => {
     const nowTime = new Date().toLocaleTimeString('en-PH', {
       hour: '2-digit',
       minute: '2-digit',
@@ -534,8 +543,19 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const target = prev.find(j => j.id === jeepneyId);
       if (!target) return prev;
 
-      progressRef.current[jeepneyId] = 0.05;
-      const roadPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, 0.05, direction);
+      const preserveLoc = Boolean(options?.preserveLocation);
+      progressRef.current[jeepneyId] = preserveLoc
+        ? findClosestProgressOnPath(PLMUN_ALABANG_PATH, target.currentLat, target.currentLng, direction)
+        : 0.0;
+      const roadPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, progressRef.current[jeepneyId], direction);
+
+      const destCoord: [number, number] = direction === 'PLMun_to_Alabang'
+        ? [14.42076, 121.04357]
+        : [14.38909, 121.02559];
+      const latToUse = preserveLoc ? target.currentLat : roadPos.lat;
+      const lngToUse = preserveLoc ? target.currentLng : roadPos.lng;
+      const remainingKm = Math.max(0.2, +(getDistanceKm([latToUse, lngToUse], destCoord) * 1.35).toFixed(1));
+      const etaMins = Math.max(2, Math.round((remainingKm / 22) * 60));
 
       const next = prev.map(j => {
         if (j.id !== jeepneyId) return j;
@@ -543,14 +563,14 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...j,
           status: 'en_route' as const,
           direction: direction,
-          currentLat: roadPos.lat,
-          currentLng: roadPos.lng,
-          heading: roadPos.bearing,
-          speedKmh: 24,
-          etaMinutes: 16,
-          distanceRemainingKm: 5.0,
+          currentLat: latToUse,
+          currentLng: lngToUse,
+          heading: preserveLoc ? j.heading : roadPos.bearing,
+          speedKmh: preserveLoc ? j.speedKmh : 24,
+          etaMinutes: etaMins,
+          distanceRemainingKm: preserveLoc ? remainingKm : 6.8,
           destinationName: direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal (Poblacion)',
-          nextStopName: direction === 'PLMun_to_Alabang' ? 'Poblacion Health Center' : 'Montillano St. Junction',
+          nextStopName: direction === 'PLMun_to_Alabang' ? 'Muntinlupa City Hall Complex' : 'Montillano Commercial Strip',
           lastGpsUpdate: 'Just now',
         };
       });
@@ -579,7 +599,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     });
   };
 
-  const endTrip = (jeepneyId: string) => {
+  const endTrip = (jeepneyId: string, options?: { preserveLocation?: boolean }) => {
     const nowTime = new Date().toLocaleTimeString('en-PH', {
       hour: '2-digit',
       minute: '2-digit',
@@ -593,8 +613,11 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const isAtAlabang = target.direction === 'PLMun_to_Alabang';
       const terminalCoord: [number, number] = isAtAlabang 
-        ? [14.4215, 121.0445] 
-        : [14.3854, 121.0422];
+        ? [14.42076, 121.04357] 
+        : [14.38909, 121.02559];
+      const preserveLoc = Boolean(options?.preserveLocation);
+      const latToUse = preserveLoc ? target.currentLat : terminalCoord[0];
+      const lngToUse = preserveLoc ? target.currentLng : terminalCoord[1];
 
       const next = prev.map(j => {
         if (j.id !== jeepneyId) return j;
@@ -602,8 +625,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...j,
           status: 'at_terminal' as const,
           speedKmh: 0,
-          currentLat: terminalCoord[0],
-          currentLng: terminalCoord[1],
+          currentLat: latToUse,
+          currentLng: lngToUse,
           currentPassengers: 0,
           etaMinutes: 0,
           distanceRemainingKm: 0,
@@ -620,7 +643,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
             ...t,
             status: 'completed',
             endTime: nowTime,
-            distanceCoveredKm: 5.2,
+            distanceCoveredKm: 6.8,
           };
         }
         return t;
@@ -634,8 +657,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         terminalId: isAtAlabang ? 'term-alabang' : 'term-plmun',
         terminalName: isAtAlabang ? 'Alabang South Station Terminal' : 'PLMun University Terminal',
         eventType: 'ENTERED',
-        lat: terminalCoord[0],
-        lng: terminalCoord[1],
+        lat: latToUse,
+        lng: lngToUse,
         occurredAt: `${nowTime} PST`,
       };
       setGeofenceEvents(old => [geoEvent, ...old]);
@@ -769,12 +792,11 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         setStops((prevStops) => {
           const approxKmBySeq: Record<number, number> = {
             1: 0,
-            2: 1.2,
-            3: 2.6,
-            4: 4.4,
-            5: 5.9,
-            6: 7.6,
-            7: 9.3,
+            2: 2.8,
+            3: 3.3,
+            4: 4.5,
+            5: 5.5,
+            6: 6.8,
           };
           const recalculated = prevStops.map((stop) => {
             if (stop.sequence === 1) {

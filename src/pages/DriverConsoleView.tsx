@@ -3,7 +3,7 @@ import { Jeepney, Terminal, RouteStop, TripDirection } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTransit } from '../context/TransitContext';
 import { PLMUN_ALABANG_PATH } from '../data/mockData';
-import { interpolatePositionOnPath } from '../utils/geoUtils';
+import { interpolatePositionOnPath, calculateBearing, getDistanceKm } from '../utils/geoUtils';
 import { 
   Play, 
   Square, 
@@ -47,8 +47,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     updateJeepneyPassengers, 
     startTrip, 
     endTrip, 
-    triggerSosAlert, 
-    updateJeepneyLocation 
+    triggerSosAlert,
   } = useTransit();
 
   const fallbackUnit: Jeepney = {
@@ -59,9 +58,9 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     capacity: 20,
     currentPassengers: 0,
     status: 'at_terminal',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 90,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 4.0,
     lastGpsUpdate: 'Just now',
@@ -145,22 +144,31 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
 
   // Start / End Trip Actions
   const handleToggleTrip = () => {
+    const liveGpsReady = useDeviceGps && gpsStatus === 'locked';
     if (isTripActive) {
       const confirmEnd = window.confirm(`End current trip and arrive at ${direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal'}?`);
       if (confirmEnd) {
-        endTrip(activeJeepney.id);
-        progressRef.current = 0.05;
+        endTrip(activeJeepney.id, { preserveLocation: liveGpsReady });
+        progressRef.current = 0.0;
         // Switch next planned direction
         setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang');
       }
     } else {
-      progressRef.current = 0.05;
-      startTrip(activeJeepney.id, direction);
+      progressRef.current = 0.0;
+      startTrip(activeJeepney.id, direction, { preserveLocation: liveGpsReady });
     }
   };
 
   // Active Trip GPS Progression Loop (simulates driving along corridor when not using hardware GPS)
-  const progressRef = useRef<number>(0.05);
+  const progressRef = useRef<number>(0.0);
+  const latestHeadingRef = useRef<number>(activeJeepney.heading || 182);
+  const lastGpsFixRef = useRef<[number, number] | null>(null);
+
+  useEffect(() => {
+    if (typeof activeJeepney.heading === 'number') {
+      latestHeadingRef.current = activeJeepney.heading;
+    }
+  }, [activeJeepney.heading]);
 
   useEffect(() => {
     if (!isTripActive || useDeviceGps) return;
@@ -170,20 +178,20 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       if (progressRef.current >= 0.98) {
         // Automatically dock at destination terminal
         endTrip(activeJeepney.id);
-        progressRef.current = 0.05;
+        progressRef.current = 0.0;
         setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang');
         return;
       }
 
       const roadPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, progressRef.current, direction);
-      const remainingKm = Math.max(0.1, +(5.2 * (1 - progressRef.current)).toFixed(1));
-      const etaMins = Math.max(1, Math.round((remainingKm / 24) * 60));
+      const remainingKm = Math.max(0.1, +(6.8 * (1 - progressRef.current)).toFixed(1));
+      const etaMins = Math.max(1, Math.round((remainingKm / 22) * 60));
       const speed = Math.round(22 + Math.random() * 8);
 
-      // Determine next stop landmark
+      // Determine next stop landmark (Official 6-Stop Sequence)
       const nextStop = direction === 'PLMun_to_Alabang'
-        ? (progressRef.current < 0.25 ? 'Poblacion Health Center' : progressRef.current < 0.5 ? 'Muntinlupa City Hall' : progressRef.current < 0.75 ? 'Bayanan Public Market' : 'Alabang South Station')
-        : (progressRef.current < 0.25 ? 'Montillano St. Junction' : progressRef.current < 0.5 ? 'Bayanan Public Market' : progressRef.current < 0.75 ? 'Muntinlupa City Hall' : 'PLMun Terminal');
+        ? (progressRef.current < 0.38 ? 'Muntinlupa City Hall Complex' : progressRef.current < 0.55 ? 'Soldiers Hills / Summitville' : progressRef.current < 0.72 ? 'Bayanan Public Market' : progressRef.current < 0.86 ? 'Montillano Commercial Strip' : 'Alabang South Station Terminal')
+        : (progressRef.current < 0.20 ? 'Montillano Commercial Strip' : progressRef.current < 0.42 ? 'Bayanan Public Market' : progressRef.current < 0.60 ? 'Soldiers Hills / Summitville' : progressRef.current < 0.78 ? 'Muntinlupa City Hall Complex' : 'PLMun University Terminal');
 
       updateJeepney(activeJeepney.id, {
         currentLat: roadPos.lat,
@@ -240,19 +248,13 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           setGpsStatus('locked');
           setGpsAccuracy(roundedAcc);
           setUseDeviceGps(true);
-
-          updateJeepneyLocation(
-            activeJeepney.id,
-            cachedGps.lat,
-            cachedGps.lng,
-            cachedGps.speed || 0,
-            cachedGps.heading || activeJeepney.heading || 0,
-            roundedAcc
-          );
+          lastGpsFixRef.current = [cachedGps.lat, cachedGps.lng];
 
           updateJeepney(activeJeepney.id, {
             currentLat: cachedGps.lat,
             currentLng: cachedGps.lng,
+            speedKmh: cachedGps.speed || 0,
+            heading: cachedGps.heading || latestHeadingRef.current,
             accuracyMeters: roundedAcc,
             status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
             lastGpsUpdate: 'Just now',
@@ -268,27 +270,21 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, speed, heading, accuracy } = position.coords;
-          const speedKmh = speed ? Math.round(speed * 3.6) : 0;
+          const speedKmh = speed !== null && !isNaN(speed) ? Math.round(speed * 3.6) : 0;
           const roundedAcc = Math.round(accuracy);
-          
+          const nextHeading = heading !== null && !isNaN(heading) ? heading : latestHeadingRef.current;
+
           setGpsStatus('locked');
           setGpsAccuracy(roundedAcc);
           setUseDeviceGps(true);
-
-          updateJeepneyLocation(
-            activeJeepney.id,
-            latitude,
-            longitude,
-            speedKmh,
-            heading || activeJeepney.heading || 0,
-            roundedAcc
-          );
+          lastGpsFixRef.current = [latitude, longitude];
+          latestHeadingRef.current = nextHeading;
 
           updateJeepney(activeJeepney.id, {
             currentLat: latitude,
             currentLng: longitude,
             speedKmh: speedKmh,
-            heading: heading || activeJeepney.heading || 0,
+            heading: nextHeading,
             accuracyMeters: roundedAcc,
             status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
             lastGpsUpdate: 'Just now',
@@ -307,37 +303,48 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       setGpsStatus('denied');
       setUseDeviceGps(false);
     }
-  }, [activeJeepney.id]);
+  }, [activeJeepney.id, updateJeepney]);
 
-  // Continuous Live GPS Watcher (tracks real movement whenever useDeviceGps is active)
+  // Continuous Live GPS Watcher (tracks real movement smoothly without restarting listener on every tick)
   useEffect(() => {
     if (!useDeviceGps || typeof navigator === 'undefined' || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, speed, heading, accuracy } = position.coords;
-        const speedKmh = speed !== null ? Math.round(speed * 3.6) : (isTripActive ? activeJeepney.speedKmh : 0);
-        const currentHeading = heading !== null && !isNaN(heading) ? heading : activeJeepney.heading;
+        const speedKmh = speed !== null && !isNaN(speed) ? Math.round(speed * 3.6) : 0;
         const roundedAcc = Math.round(accuracy);
 
+        // Derive heading from movement vector if hardware compass heading is unavailable
+        let resolvedHeading = latestHeadingRef.current;
+        if (heading !== null && !isNaN(heading)) {
+          resolvedHeading = heading;
+        } else if (lastGpsFixRef.current) {
+          const movedKm = getDistanceKm(lastGpsFixRef.current, [latitude, longitude]);
+          if (movedKm > 0.003) {
+            resolvedHeading = Math.round(calculateBearing(lastGpsFixRef.current, [latitude, longitude]));
+          }
+        }
+
+        lastGpsFixRef.current = [latitude, longitude];
+        latestHeadingRef.current = resolvedHeading;
         setGpsStatus('locked');
         setGpsAccuracy(roundedAcc);
 
-        updateJeepneyLocation(
-          activeJeepney.id,
-          latitude,
-          longitude,
-          speedKmh,
-          currentHeading,
-          roundedAcc
-        );
+        const destCoord: [number, number] = direction === 'PLMun_to_Alabang'
+          ? [14.42076, 121.04357]
+          : [14.38909, 121.02559];
+        const remainingKm = Math.max(0.1, +(getDistanceKm([latitude, longitude], destCoord) * 1.35).toFixed(1));
+        const etaMins = Math.max(1, Math.round((remainingKm / Math.max(15, speedKmh || 20)) * 60));
 
         updateJeepney(activeJeepney.id, {
           currentLat: latitude,
           currentLng: longitude,
           speedKmh: speedKmh,
-          heading: currentHeading,
+          heading: resolvedHeading,
           accuracyMeters: roundedAcc,
+          distanceRemainingKm: remainingKm,
+          etaMinutes: etaMins,
           lastGpsUpdate: 'Just now',
         });
       },
@@ -349,7 +356,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [useDeviceGps, isTripActive, activeJeepney.id, activeJeepney.speedKmh, activeJeepney.heading, updateJeepney, updateJeepneyLocation]);
+  }, [useDeviceGps, activeJeepney.id, direction, updateJeepney]);
 
   return (
     <div className="max-w-md lg:max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4 font-sans text-slate-900 dark:text-slate-100 pb-16">
@@ -475,18 +482,29 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
                       const roundedAcc = Math.round(pos.coords.accuracy);
                       setGpsStatus('locked');
                       setGpsAccuracy(roundedAcc);
-                      updateJeepneyLocation(activeJeepney.id, pos.coords.latitude, pos.coords.longitude, 0, 0, roundedAcc);
+                      lastGpsFixRef.current = [pos.coords.latitude, pos.coords.longitude];
                       updateJeepney(activeJeepney.id, {
                         currentLat: pos.coords.latitude,
                         currentLng: pos.coords.longitude,
+                        speedKmh: pos.coords.speed !== null && !isNaN(pos.coords.speed) ? Math.round(pos.coords.speed * 3.6) : 0,
+                        heading: pos.coords.heading !== null && !isNaN(pos.coords.heading) ? pos.coords.heading : latestHeadingRef.current,
                         accuracyMeters: roundedAcc,
                         lastGpsUpdate: 'Just now'
                       });
                     },
                     () => setGpsStatus('denied'),
-                    { enableHighAccuracy: true, timeout: 6000 }
+                    { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
                   );
                 }
+              } else {
+                const startPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, progressRef.current, direction);
+                updateJeepney(activeJeepney.id, {
+                  currentLat: startPos.lat,
+                  currentLng: startPos.lng,
+                  heading: startPos.bearing,
+                  accuracyMeters: 4.0,
+                  lastGpsUpdate: 'Simulated Corridor',
+                });
               }
             }}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer ${

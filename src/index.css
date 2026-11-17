@@ -289,8 +289,11 @@ html:not(.dark) .google-map-canvas.theme-google-clean .leaflet-tile-pane {
   pointer-events: none;
 }
 
-/* Ensure Leaflet marker container for top-view vehicles is transparent and overflow-visible */
-.google-vehicle-topview {
+/* Ensure Leaflet marker container for top-view vehicles and custom icons is transparent, overflow-visible, and zero-offset */
+.google-vehicle-topview,
+.google-nav-red-vehicle,
+.hazard-speech-balloon,
+.highway-shield {
   background: transparent !important;
   border: none !important;
   overflow: visible !important;

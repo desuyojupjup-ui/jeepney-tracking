@@ -267,7 +267,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
   children,
 }) => {
   const { theme: appTheme } = useTheme();
-  const defaultCenter: [number, number] = [14.4025, 121.0450];
+  const defaultCenter: [number, number] = [14.4045, 121.0365];
   const [googleTheme, setGoogleTheme] = useState<'google-updated' | 'google-classic' | 'google-clean' | 'google-dark' | 'satellite'>(
     appTheme === 'dark' ? 'google-dark' : 'google-updated'
   );
@@ -477,28 +477,28 @@ export const TransitMap: React.FC<TransitMapProps> = ({
           {/* Google Maps Quick Filter Category Chips */}
           <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
             <button
-              onClick={() => handleLandmarkClick([14.3854, 121.0422])}
+              onClick={() => handleLandmarkClick([14.38909, 121.02559])}
               className="bg-white/95 dark:bg-[#202124]/95 backdrop-blur hover:bg-gray-50 dark:hover:bg-[#303134] text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-full shadow border border-gray-200 dark:border-[#3c4043] font-medium whitespace-nowrap flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <span>🎓</span>
               <span>PLMun Main</span>
             </button>
             <button
-              onClick={() => handleLandmarkClick([14.3940, 121.0440])}
+              onClick={() => handleLandmarkClick([14.39558, 121.04493])}
               className="bg-white/95 dark:bg-[#202124]/95 backdrop-blur hover:bg-gray-50 dark:hover:bg-[#303134] text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-full shadow border border-gray-200 dark:border-[#3c4043] font-medium whitespace-nowrap flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <span>🏛️</span>
               <span>City Hall</span>
             </button>
             <button
-              onClick={() => handleLandmarkClick([14.4095, 121.0478])}
+              onClick={() => handleLandmarkClick([14.40933, 121.04637])}
               className="bg-white/95 dark:bg-[#202124]/95 backdrop-blur hover:bg-gray-50 dark:hover:bg-[#303134] text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-full shadow border border-gray-200 dark:border-[#3c4043] font-medium whitespace-nowrap flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <span>🏪</span>
               <span>Bayanan</span>
             </button>
             <button
-              onClick={() => handleLandmarkClick([14.4215, 121.0445])}
+              onClick={() => handleLandmarkClick([14.42076, 121.04357])}
               className="bg-white/95 dark:bg-[#202124]/95 backdrop-blur hover:bg-gray-50 dark:hover:bg-[#303134] text-gray-700 dark:text-gray-200 px-3 py-1.5 rounded-full shadow border border-gray-200 dark:border-[#3c4043] font-medium whitespace-nowrap flex items-center gap-1.5 active:scale-95 transition-all"
             >
               <span>🚉</span>
@@ -667,7 +667,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-lg font-bold text-gray-900 dark:text-gray-100 font-sans">22 min</span>
-                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">(5.2 km)</span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400 font-medium">(6.8 km)</span>
                   </div>
                   <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1">
                     <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
@@ -696,7 +696,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
 
             <div className="flex items-center gap-2 pt-1">
               <button
-                onClick={() => handleLandmarkClick([14.3854, 121.0422])}
+                onClick={() => handleLandmarkClick([14.38909, 121.02559])}
                 className="flex-1 bg-[#1A73E8] hover:bg-[#1557b0] text-white py-2 rounded-full font-semibold text-xs flex items-center justify-center gap-1.5 shadow-md transition-all active:scale-95"
               >
                 <Navigation className="w-3.5 h-3.5 fill-current" />
@@ -782,7 +782,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
           <>
             {/* Moderate traffic near Putatan City Hall */}
             <Polyline
-              positions={routePath.slice(2, 5)}
+              positions={routePath.slice(21, 27)}
               pathOptions={{
                 color: '#FBBC04', // Google Yellow
                 weight: 4,
@@ -791,7 +791,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
             />
             {/* Congested bottleneck near Montillano Alabang Viaduct */}
             <Polyline
-              positions={routePath.slice(9, 12)}
+              positions={routePath.slice(39, 44)}
               pathOptions={{
                 color: '#EA4335', // Google Red
                 weight: 4,
@@ -819,7 +819,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
 
         {/* Origin Green Pin: PLMun Terminal */}
         <Marker
-          position={[14.3854, 121.0422]}
+          position={[14.38909, 121.02559]}
           icon={createGoogleGreenPin('PLMun Terminal')}
         >
           <Popup className="google-maps-popup" autoPan={false}>
@@ -847,7 +847,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
 
         {/* Destination Red Pin: Alabang South Station */}
         <Marker
-          position={[14.4215, 121.0445]}
+          position={[14.42076, 121.04357]}
           icon={createGoogleRedPin('Alabang Terminal')}
         >
           <Popup className="google-maps-popup" autoPan={false}>

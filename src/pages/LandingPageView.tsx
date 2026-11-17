@@ -282,7 +282,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                             </span>
                           </div>
                           <div className="text-xs text-slate-500 dark:text-slate-400">
-                            Approaching <strong className="text-slate-700 dark:text-slate-300">SM Center Muntinlupa</strong> &bull; 34 km/h
+                            Approaching <strong className="text-slate-700 dark:text-slate-300">Muntinlupa City Hall</strong> &bull; 34 km/h
                           </div>
                         </div>
                       </div>

@@ -12,21 +12,57 @@ import {
   CommuterUser
 } from '../types';
 
-// Real-world coordinates along Manila South Road connecting PLMun to Alabang South Station
+// Real-world street-aligned coordinates along University Rd, E. Rodriguez Sr. Ave, Katihan St, and Manila South Rd connecting PLMun Campus to Alabang South Station
 export const PLMUN_ALABANG_PATH: [number, number][] = [
-  [14.3854, 121.0422], // PLMun Terminal (Poblacion)
-  [14.3872, 121.0428], // University Road Gate
-  [14.3900, 121.0435], // Poblacion Health Center / Centennial Ave
-  [14.3940, 121.0440], // Muntinlupa City Hall Complex (Putatan)
-  [14.3965, 121.0446], // Putatan Plaza / Lakeview
-  [14.3985, 121.0450], // Soldiers Hills / Summitville Junction
-  [14.4025, 121.0465], // SM Center Muntinlupa
-  [14.4055, 121.0470], // Muntinlupa Doctors Clinic / Agro Homes
-  [14.4095, 121.0478], // Bayanan Public Market
-  [14.4130, 121.0475], // Alabang Elementary / Medical Center Muntinlupa
-  [14.4170, 121.0470], // Montillano St. Junction
-  [14.4195, 121.0458], // Alabang Viaduct Underpass
-  [14.4215, 121.0445], // Alabang South Station / Starmall Terminal
+  [14.38909, 121.02559], // PLMun University Terminal (Campus / University Road)
+  [14.38855, 121.02557], // PLMun Frontage Turn
+  [14.38897, 121.02698], // University Road
+  [14.38880, 121.02817], // University Road Bend
+  [14.38759, 121.02849], // University Road Southbound
+  [14.38633, 121.02873], // University Road
+  [14.38540, 121.02896], // University Rd & E. Rodriguez Sr. Ave Junction
+  [14.38571, 121.03025], // E. Rodriguez Sr. Avenue
+  [14.38616, 121.03214], // E. Rodriguez Sr. Avenue
+  [14.38659, 121.03398], // E. Rodriguez Sr. Avenue
+  [14.38713, 121.03624], // E. Rodriguez Sr. Avenue
+  [14.38745, 121.03757], // E. Rodriguez Sr. Ave / Katihan St.
+  [14.38749, 121.03772], // Katihan Street
+  [14.38781, 121.03918], // Katihan Street
+  [14.38826, 121.04110], // Katihan Street (Poblacion)
+  [14.38859, 121.04245], // Katihan Street
+  [14.38892, 121.04379], // Katihan Street approaching National Rd
+  [14.38923, 121.04498], // Katihan St. & Manila South Road (National Rd) Junction
+  [14.38936, 121.04501], // National Road (Poblacion)
+  [14.39050, 121.04453], // National Road
+  [14.39173, 121.04460], // National Road
+  [14.39296, 121.04471], // National Road (Putatan)
+  [14.39429, 121.04482], // Muntinlupa City Hall Approach
+  [14.39558, 121.04493], // Muntinlupa City Hall Complex (National Rd Frontage)
+  [14.39687, 121.04505], // Putatan Plaza / Lakeview
+  [14.39800, 121.04559], // National Road (Putatan North)
+  [14.39907, 121.04630], // Soldiers Hills / Summitville Junction
+  [14.40044, 121.04684], // National Road
+  [14.40167, 121.04715], // National Road
+  [14.40288, 121.04716], // National Road
+  [14.40409, 121.04701], // National Road
+  [14.40545, 121.04683], // Muntinlupa Doctors Clinic / Agro Homes
+  [14.40669, 121.04668], // National Road (Bayanan South)
+  [14.40808, 121.04650], // National Road (Bayanan)
+  [14.40933, 121.04637], // Bayanan Public Market
+  [14.41081, 121.04620], // National Road
+  [14.41201, 121.04603], // National Road
+  [14.41345, 121.04589], // Medical Center Muntinlupa / Alabang South
+  [14.41482, 121.04575], // National Road
+  [14.41607, 121.04559], // National Road
+  [14.41756, 121.04557], // Montillano Commercial Strip Junction
+  [14.41893, 121.04558], // Alabang Crossing / Viaduct Approach
+  [14.42019, 121.04556], // Alabang Viaduct Loop
+  [14.41922, 121.04463], // Montillano Street
+  [14.41968, 121.04349], // Alabang-Zapote Road
+  [14.42061, 121.04231], // Corporate Avenue Junction
+  [14.42137, 121.04233], // Corporate Avenue
+  [14.42136, 121.04321], // South Station Approach
+  [14.42076, 121.04357], // Alabang South Station / Starmall Terminal
 ];
 
 export const MOCK_TERMINALS: Terminal[] = [
@@ -35,8 +71,8 @@ export const MOCK_TERMINALS: Terminal[] = [
     code: 'PLMUN',
     name: 'PLMun University Terminal',
     locationDescription: 'University Road, Brgy. Poblacion, Muntinlupa City',
-    lat: 14.3854,
-    lng: 121.0422,
+    lat: 14.38909,
+    lng: 121.02559,
     radiusMeters: 130,
     totalBays: 8,
     currentOccupiedBays: 5,
@@ -48,8 +84,8 @@ export const MOCK_TERMINALS: Terminal[] = [
     code: 'ALABANG',
     name: 'Alabang South Station Terminal',
     locationDescription: 'Corporate Ave & Spectrum Midway, Filinvest City, Alabang',
-    lat: 14.4215,
-    lng: 121.0445,
+    lat: 14.42076,
+    lng: 121.04357,
     radiusMeters: 150,
     totalBays: 10,
     currentOccupiedBays: 4,
@@ -64,7 +100,7 @@ export const MOCK_ROUTE: TransitRoute = {
   name: 'PLMun (Poblacion) ⇄ Alabang (South Station) via National Rd',
   originName: 'PLMun Terminal (Poblacion)',
   destinationName: 'Alabang South Station',
-  distanceKm: 5.2,
+  distanceKm: 6.8,
   averageTransitMins: 22,
   pathCoordinates: PLMUN_ALABANG_PATH,
   corridorToleranceMeters: 65, // meters tolerance before route deviation
@@ -72,9 +108,9 @@ export const MOCK_ROUTE: TransitRoute = {
     {
       id: 'stop-1',
       name: 'PLMun University Terminal',
-      landmark: 'PLMun Admin Bldg / University Road',
-      lat: 14.3854,
-      lng: 121.0422,
+      landmark: 'PLMun Main Campus / University Road',
+      lat: 14.38909,
+      lng: 121.02559,
       sequence: 1,
       fareFromOriginRegular: 13.00,
       fareFromOriginDiscounted: 11.00,
@@ -83,8 +119,8 @@ export const MOCK_ROUTE: TransitRoute = {
       id: 'stop-2',
       name: 'Muntinlupa City Hall Complex',
       landmark: 'City Hall Main Entrance, Brgy. Putatan',
-      lat: 14.3940,
-      lng: 121.0440,
+      lat: 14.39558,
+      lng: 121.04493,
       sequence: 2,
       fareFromOriginRegular: 13.00,
       fareFromOriginDiscounted: 11.00,
@@ -92,50 +128,40 @@ export const MOCK_ROUTE: TransitRoute = {
     {
       id: 'stop-3',
       name: 'Soldiers Hills / Summitville',
-      landmark: 'Soldiers Hills Gate / Shell Station',
-      lat: 14.3985,
-      lng: 121.0450,
+      landmark: 'Soldiers Hills Gate / National Rd',
+      lat: 14.39907,
+      lng: 121.04630,
       sequence: 3,
       fareFromOriginRegular: 15.00,
       fareFromOriginDiscounted: 12.00,
     },
     {
       id: 'stop-4',
-      name: 'SM Center Muntinlupa',
-      landmark: 'SM Center Pedestrian Overpass, Tunasan/Putatan',
-      lat: 14.4025,
-      lng: 121.0465,
-      sequence: 4,
-      fareFromOriginRegular: 16.00,
-      fareFromOriginDiscounted: 13.00,
-    },
-    {
-      id: 'stop-5',
       name: 'Bayanan Public Market',
       landmark: 'Bayanan Baywalk & Public Market',
-      lat: 14.4095,
-      lng: 121.0478,
-      sequence: 5,
+      lat: 14.40933,
+      lng: 121.04637,
+      sequence: 4,
       fareFromOriginRegular: 18.00,
       fareFromOriginDiscounted: 14.50,
     },
     {
-      id: 'stop-6',
+      id: 'stop-5',
       name: 'Montillano Commercial Strip',
       landmark: 'Montillano St. Junction / Jollibee Alabang',
-      lat: 14.4170,
-      lng: 121.0470,
-      sequence: 6,
+      lat: 14.41756,
+      lng: 121.04557,
+      sequence: 5,
       fareFromOriginRegular: 20.00,
       fareFromOriginDiscounted: 16.00,
     },
     {
-      id: 'stop-7',
+      id: 'stop-6',
       name: 'Alabang South Station Terminal',
       landmark: 'South Station Transport Hub / Starmall Overpass',
-      lat: 14.4215,
-      lng: 121.0445,
-      sequence: 7,
+      lat: 14.42076,
+      lng: 121.04357,
+      sequence: 6,
       fareFromOriginRegular: 22.00,
       fareFromOriginDiscounted: 18.00,
     },
@@ -264,9 +290,9 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     status: 'at_terminal',
     assignedDriverId: 'drv-04',
     driverName: 'Eduardo Reyes',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 18,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 4.1,
     lastGpsUpdate: '10 seconds ago',
@@ -274,7 +300,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'Alabang South Station',
     nextStopName: 'PLMun University Terminal (Boarding)',
     etaMinutes: 2,
-    distanceRemainingKm: 5.2,
+    distanceRemainingKm: 6.8,
   },
   {
     id: 'puj-02',
@@ -286,9 +312,9 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     status: 'en_route',
     assignedDriverId: 'drv-01',
     driverName: 'Juan Dela Cruz',
-    currentLat: 14.4055,
-    currentLng: 121.0470,
-    heading: 11,
+    currentLat: 14.40545,
+    currentLng: 121.04683,
+    heading: 353,
     speedKmh: 28,
     accuracyMeters: 3.5,
     lastGpsUpdate: 'Just now',
@@ -297,7 +323,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'Alabang South Station',
     nextStopName: 'Bayanan Public Market',
     etaMinutes: 7,
-    distanceRemainingKm: 2.1,
+    distanceRemainingKm: 2.3,
   },
   {
     id: 'puj-03',
@@ -308,8 +334,8 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     currentPassengers: 3,
     status: 'at_terminal',
     driverName: 'Felipe Mendoza',
-    currentLat: 14.4215,
-    currentLng: 121.0445,
+    currentLat: 14.42076,
+    currentLng: 121.04357,
     heading: 209,
     speedKmh: 0,
     accuracyMeters: 5.0,
@@ -318,7 +344,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'PLMun Terminal',
     nextStopName: 'Alabang South Station (Boarding)',
     etaMinutes: 4,
-    distanceRemainingKm: 5.2,
+    distanceRemainingKm: 6.8,
   },
   {
     id: 'puj-04',
@@ -330,16 +356,16 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     status: 'en_route',
     assignedDriverId: 'drv-02',
     driverName: 'Rodrigo Santos',
-    currentLat: 14.4130,
-    currentLng: 121.0475,
-    heading: 175,
+    currentLat: 14.41345,
+    currentLng: 121.04589,
+    heading: 174,
     speedKmh: 31,
     accuracyMeters: 3.2,
     lastGpsUpdate: 'Just now',
     currentTripId: 'trp-1003',
     direction: 'Alabang_to_PLMun',
     destinationName: 'PLMun Terminal',
-    nextStopName: 'SM Center Muntinlupa',
+    nextStopName: 'Bayanan Public Market',
     etaMinutes: 11,
     distanceRemainingKm: 3.4,
   },
@@ -352,9 +378,9 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     currentPassengers: 0,
     status: 'at_terminal',
     driverName: 'Nestor Valenzuela',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 18,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 6.8,
     lastGpsUpdate: '2 mins ago',
@@ -362,7 +388,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'Alabang South Station',
     nextStopName: 'PLMun Queue Position #2',
     etaMinutes: 9,
-    distanceRemainingKm: 5.2,
+    distanceRemainingKm: 6.8,
   },
   {
     id: 'puj-06',
@@ -374,9 +400,9 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     status: 'idle',
     assignedDriverId: 'drv-03',
     driverName: 'Danilo Bautista',
-    currentLat: 14.3940,
-    currentLng: 121.0440,
-    heading: 12,
+    currentLat: 14.39558,
+    currentLng: 121.04493,
+    heading: 5,
     speedKmh: 0,
     accuracyMeters: 4.4,
     lastGpsUpdate: '30 seconds ago',
@@ -385,7 +411,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'Alabang South Station',
     nextStopName: 'Muntinlupa City Hall Complex',
     etaMinutes: 16,
-    distanceRemainingKm: 3.8,
+    distanceRemainingKm: 4.1,
   },
   {
     id: 'puj-07',
@@ -396,8 +422,8 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     currentPassengers: 0,
     status: 'at_terminal',
     driverName: 'Carlos Soriano',
-    currentLat: 14.4215,
-    currentLng: 121.0445,
+    currentLat: 14.42076,
+    currentLng: 121.04357,
     heading: 209,
     speedKmh: 0,
     accuracyMeters: 4.9,
@@ -406,7 +432,7 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     destinationName: 'PLMun Terminal',
     nextStopName: 'Alabang Queue Position #2',
     etaMinutes: 12,
-    distanceRemainingKm: 5.2,
+    distanceRemainingKm: 6.8,
   },
   {
     id: 'puj-08',
@@ -418,9 +444,9 @@ export const MOCK_JEEPNEYS: Jeepney[] = [
     status: 'offline',
     assignedDriverId: 'drv-05',
     driverName: 'Arman Gutierrez',
-    currentLat: 14.3854,
-    currentLng: 121.0422,
-    heading: 18,
+    currentLat: 14.38909,
+    currentLng: 121.02559,
+    heading: 182,
     speedKmh: 0,
     accuracyMeters: 12.0,
     lastGpsUpdate: '25 mins ago',
@@ -439,8 +465,8 @@ export const MOCK_ALERTS: OperationalAlert[] = [
     type: 'IDLE_TIMEOUT',
     severity: 'medium',
     message: 'Stationary at Putatan City Hall for > 8 minutes during morning peak hour.',
-    lat: 14.3940,
-    lng: 121.0440,
+    lat: 14.39558,
+    lng: 121.04493,
     status: 'active',
     createdAt: '4 minutes ago',
   },
@@ -451,9 +477,9 @@ export const MOCK_ALERTS: OperationalAlert[] = [
     driverName: 'Juan Dela Cruz',
     type: 'GEOFENCE_BREACH',
     severity: 'low',
-    message: 'Departed PLMun Terminal perimeter via South Gate at 14:22:10 PST.',
-    lat: 14.3872,
-    lng: 121.0428,
+    message: 'Departed PLMun Terminal perimeter via University Road at 14:22:10 PST.',
+    lat: 14.38880,
+    lng: 121.02817,
     status: 'acknowledged',
     createdAt: '18 minutes ago',
   }
@@ -467,8 +493,8 @@ export const MOCK_GEOFENCE_EVENTS: GeofenceEvent[] = [
     terminalId: 'term-plmun',
     terminalName: 'PLMun University Terminal',
     eventType: 'EXITED',
-    lat: 14.3854,
-    lng: 121.0422,
+    lat: 14.38909,
+    lng: 121.02559,
     occurredAt: '14:22:10',
   },
   {
@@ -478,8 +504,8 @@ export const MOCK_GEOFENCE_EVENTS: GeofenceEvent[] = [
     terminalId: 'term-alabang',
     terminalName: 'Alabang South Station Terminal',
     eventType: 'EXITED',
-    lat: 14.4215,
-    lng: 121.0445,
+    lat: 14.42076,
+    lng: 121.04357,
     occurredAt: '14:18:45',
   },
   {
@@ -489,8 +515,8 @@ export const MOCK_GEOFENCE_EVENTS: GeofenceEvent[] = [
     terminalId: 'term-alabang',
     terminalName: 'Alabang South Station Terminal',
     eventType: 'ENTERED',
-    lat: 14.4215,
-    lng: 121.0445,
+    lat: 14.42076,
+    lng: 121.04357,
     occurredAt: '14:10:02',
   },
   {
@@ -500,8 +526,8 @@ export const MOCK_GEOFENCE_EVENTS: GeofenceEvent[] = [
     terminalId: 'term-plmun',
     terminalName: 'PLMun University Terminal',
     eventType: 'ENTERED',
-    lat: 14.3854,
-    lng: 121.0422,
+    lat: 14.38909,
+    lng: 121.02559,
     occurredAt: '14:02:30',
   },
 ];

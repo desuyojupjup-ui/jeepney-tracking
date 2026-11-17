@@ -2,6 +2,12 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Driver, OperatorAccount, CommuterUser } from '../types';
 import { MOCK_DRIVERS, MOCK_OPERATORS, MOCK_COMMUTERS } from '../data/mockData';
 
+export const PLMUN_EMAIL_REGEX = /^[a-z0-9._%+-]+@plmun\.edu\.ph$/i;
+
+export function isValidPlmunEmail(email: string): boolean {
+  return PLMUN_EMAIL_REGEX.test(email.trim());
+}
+
 interface AuthContextType {
   currentOperator: OperatorAccount | null;
   currentDriver: Driver | null;
@@ -368,7 +374,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, error: 'PLMun Student / Employee ID Number is required.' };
     }
     if (!cleanEmail) {
-      return { success: false, error: 'Institutional or active email address is required.' };
+      return { success: false, error: 'Your official PLMun school email address (@plmun.edu.ph) is required.' };
+    }
+    if (!isValidPlmunEmail(cleanEmail)) {
+      return {
+        success: false,
+        error: 'Personal email addresses are not accepted. Please use your official PLMun school email (@plmun.edu.ph).',
+      };
     }
     if (cleanPass.length < 6) {
       return { success: false, error: 'Password must be at least 6 characters.' };
