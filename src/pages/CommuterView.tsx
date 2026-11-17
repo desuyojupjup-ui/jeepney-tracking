@@ -65,7 +65,7 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
     setLocateTrigger(prev => prev + 1);
   };
 
-  // Enrich jeepneys with live driver account data and strictly respect offline / logged-out status
+  // Enrich jeepneys with live driver account data while respecting the vehicle's live status
   const enrichedJeepneys = React.useMemo(() => {
     return jeepneys.map((j) => {
       const matchedDriver = drivers.find(
@@ -75,22 +75,13 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
           (j.driverName && d.fullName.toLowerCase() === j.driverName.toLowerCase())
       );
 
-      // If the assigned driver logged out (off_duty) or is on_break or suspended, treat the vehicle as offline
-      const isDriverLoggedOut =
-        matchedDriver &&
-        (matchedDriver.status === 'off_duty' ||
-          matchedDriver.status === 'on_break' ||
-          matchedDriver.accountStatus === 'suspended') &&
-        matchedDriver.id !== currentDriver?.id;
-
       return {
         ...j,
-        driverName: matchedDriver?.fullName || j.driverName || 'Authorized PLMun Driver',
-        assignedDriverId: matchedDriver?.id || j.assignedDriverId,
-        status: isDriverLoggedOut ? ('offline' as const) : j.status,
+        driverName: j.driverName || matchedDriver?.fullName || 'Authorized PLMun Driver',
+        assignedDriverId: j.assignedDriverId || matchedDriver?.id,
       };
     });
-  }, [jeepneys, drivers, currentDriver]);
+  }, [jeepneys, drivers]);
 
   // Show all online/active jeepneys matching category (sorted with selectedDirection first so active drivers are never hidden)
   const filteredJeepneys = React.useMemo(() => {

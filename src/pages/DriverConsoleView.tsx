@@ -126,10 +126,14 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
 
   // Bring driver's assigned jeepney online and sync driver identity upon opening the console
   useEffect(() => {
+    if (currentDriver && currentDriver.status === 'off_duty') {
+      updateDriver(currentDriver.id, { status: 'on_duty' });
+    }
     if (
-      activeJeepney.status === 'offline' ||
-      activeJeepney.driverName !== activeDriverName ||
-      (currentDriver?.id && activeJeepney.assignedDriverId !== currentDriver.id)
+      activeDutyStatus !== 'on_break' &&
+      (activeJeepney.status === 'offline' ||
+        activeJeepney.driverName !== activeDriverName ||
+        (currentDriver?.id && activeJeepney.assignedDriverId !== currentDriver.id))
     ) {
       updateJeepney(activeJeepney.id, {
         status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
@@ -139,7 +143,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
         lastGpsUpdate: 'Just now',
       });
     }
-  }, [activeJeepney.id, activeJeepney.status, activeJeepney.driverName, activeJeepney.assignedDriverId, activeDriverName, currentDriver?.id, direction, updateJeepney]);
+  }, [activeJeepney.id, activeJeepney.status, activeJeepney.driverName, activeJeepney.assignedDriverId, activeDriverName, activeDutyStatus, currentDriver, direction, updateDriver, updateJeepney]);
 
   // Passenger Count Actions
   const handlePassengerChange = (delta: number) => {
@@ -159,8 +163,15 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
         setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang');
       }
     } else {
+      if (currentDriver && currentDriver.status !== 'on_duty') {
+        updateDriver(currentDriver.id, { status: 'on_duty' });
+      }
       progressRef.current = 0.0;
-      startTrip(activeJeepney.id, direction, { preserveLocation: liveGpsReady });
+      startTrip(activeJeepney.id, direction, {
+        preserveLocation: liveGpsReady,
+        driverName: activeDriverName,
+        assignedDriverId: currentDriver?.id,
+      });
     }
   };
 

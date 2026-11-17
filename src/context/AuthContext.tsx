@@ -126,24 +126,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return null;
   });
   // Load persisted drivers or fallback to initial mock drivers
-  // If no driver session is active in localStorage, ensure no driver is stuck in 'on_duty' from a prior session
   const [drivers, setDrivers] = useState<Driver[]>(() => {
-    const activeSessionRaw = localStorage.getItem(DRIVER_SESSION_KEY);
-    let activeDriverId: string | null = null;
-    try {
-      if (activeSessionRaw) {
-        activeDriverId = JSON.parse(activeSessionRaw)?.id || null;
-      }
-    } catch (e) {}
-
     try {
       const saved = localStorage.getItem(DRIVERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map((d: Driver) =>
-            d.id === activeDriverId ? { ...d, status: 'on_duty' } : { ...d, status: 'off_duty' }
-          );
+          return parsed;
         }
       }
     } catch (e) {
@@ -241,21 +230,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setCommuters(payload);
         } else if (type === 'SYNC_DRIVERS' && Array.isArray(payload)) {
           setDrivers(payload);
-        } else if (type === 'SYNC_DRIVER_SESSION') {
-          setCurrentDriver(payload || null);
         }
       };
     } catch (e) {}
 
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === DRIVER_SESSION_KEY) {
-        try {
-          setCurrentDriver(e.newValue ? JSON.parse(e.newValue) : null);
-        } catch (err) {
-          setCurrentDriver(null);
-        }
-        return;
-      }
       if (!e.newValue) return;
       try {
         if (e.key === COMMUTERS_STORAGE_KEY) {
@@ -360,9 +339,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (e) {}
     setCurrentDriver(updatedDriver);
     localStorage.setItem(DRIVER_SESSION_KEY, JSON.stringify(updatedDriver));
-    try {
-      authChannelRef.current?.postMessage({ type: 'SYNC_DRIVER_SESSION', payload: updatedDriver });
-    } catch (e) {}
     return { success: true };
   };
 
@@ -375,7 +351,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       try {
         localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(next));
         authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: next });
-        authChannelRef.current?.postMessage({ type: 'SYNC_DRIVER_SESSION', payload: null });
       } catch (e) {}
       return next;
     });

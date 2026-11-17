@@ -98,15 +98,47 @@ function AppContent() {
     let userName = 'User';
     let roleLabel = 'Signed out';
 
-    if (isOperatorAuthenticated && currentOperator && (currentRole === 'operator' || currentRole === 'admin')) {
+    if (currentRole === 'operator' || currentRole === 'admin') {
+      userName = currentOperator?.name || 'Operator';
+      roleLabel = 'Control Center Operator';
+      logoutOperator();
+    } else if (currentRole === 'driver') {
+      userName = currentDriver?.fullName || 'Driver';
+      roleLabel = 'PUJ Driver';
+
+      // Set the driver's assigned jeepney offline immediately when signing out from the Driver Portal
+      const driverJeepney =
+        (currentDriver?.assignedJeepneyId && jeepneys.find((j) => j.id === currentDriver.assignedJeepneyId)) ||
+        (currentDriver && jeepneys.find((j) => j.assignedDriverId === currentDriver.id)) ||
+        (currentDriver && jeepneys.find((j) => j.driverName?.toLowerCase() === currentDriver.fullName.toLowerCase())) ||
+        (jeepneys.length === 1 ? jeepneys[0] : undefined);
+
+      if (driverJeepney) {
+        updateJeepney(driverJeepney.id, {
+          status: 'offline',
+          speedKmh: 0,
+          currentPassengers: 0,
+          etaMinutes: 0,
+          distanceRemainingKm: 0,
+          lastGpsUpdate: 'Offline',
+        });
+      }
+      logoutDriver();
+    } else if (currentRole === 'commuter') {
+      userName = currentCommuter?.fullName || 'Commuter';
+      roleLabel = 'Commuter';
+      logoutCommuter();
+    } else if (isCommuterAuthenticated && currentCommuter) {
+      userName = currentCommuter.fullName;
+      roleLabel = 'Commuter';
+      logoutCommuter();
+    } else if (isOperatorAuthenticated && currentOperator) {
       userName = currentOperator.name;
       roleLabel = 'Control Center Operator';
       logoutOperator();
-    } else if (isDriverAuthenticated && currentDriver && currentRole === 'driver') {
+    } else if (isDriverAuthenticated && currentDriver) {
       userName = currentDriver.fullName;
       roleLabel = 'PUJ Driver';
-
-      // Set the driver's assigned jeepney offline immediately when signing out
       const driverJeepney =
         (currentDriver.assignedJeepneyId && jeepneys.find((j) => j.id === currentDriver.assignedJeepneyId)) ||
         jeepneys.find((j) => j.assignedDriverId === currentDriver.id) ||
@@ -124,33 +156,6 @@ function AppContent() {
         });
       }
       logoutDriver();
-    } else if (isCommuterAuthenticated && currentCommuter && currentRole === 'commuter') {
-      userName = currentCommuter.fullName;
-      roleLabel = 'Commuter';
-      logoutCommuter();
-    } else {
-      // Fallback: if signing out from another screen, ensure any active driver vehicle goes offline
-      if (currentDriver) {
-        const driverJeepney =
-          (currentDriver.assignedJeepneyId && jeepneys.find((j) => j.id === currentDriver.assignedJeepneyId)) ||
-          jeepneys.find((j) => j.assignedDriverId === currentDriver.id) ||
-          jeepneys.find((j) => j.driverName?.toLowerCase() === currentDriver.fullName.toLowerCase()) ||
-          (jeepneys.length === 1 ? jeepneys[0] : undefined);
-
-        if (driverJeepney) {
-          updateJeepney(driverJeepney.id, {
-            status: 'offline',
-            speedKmh: 0,
-            currentPassengers: 0,
-            etaMinutes: 0,
-            distanceRemainingKm: 0,
-            lastGpsUpdate: 'Offline',
-          });
-        }
-      }
-      logoutOperator();
-      logoutDriver();
-      logoutCommuter();
     }
 
     try {
@@ -229,13 +234,11 @@ function AppContent() {
     resolveAlert,
   } = useTransit();
 
-  // Automatically keep logged-in drivers online on their assigned jeepney,
-  // and turn jeepneys offline when their assigned driver logs out / goes off_duty
+  // Automatically keep logged-in drivers online on their assigned jeepney when in Driver Portal
   useEffect(() => {
     if (jeepneys.length === 0) return;
 
-    // 1. If a driver is currently logged in on this session and on_duty, ensure their unit is linked and online
-    if (currentDriver && currentDriver.status === 'on_duty' && currentDriver.accountStatus !== 'suspended') {
+    if (currentRole === 'driver' && currentDriver && currentDriver.status === 'on_duty' && currentDriver.accountStatus !== 'suspended') {
       const matchedJeepney =
         (currentDriver.assignedJeepneyId && jeepneys.find((j) => j.id === currentDriver.assignedJeepneyId)) ||
         jeepneys.find((j) => j.assignedDriverId === currentDriver.id) ||
@@ -257,31 +260,8 @@ function AppContent() {
           });
         }
       }
-      return;
     }
-
-    // 2. If NO driver is logged in, ensure any jeepney whose assigned driver is off_duty or on_break is marked offline
-    if (!currentDriver) {
-      jeepneys.forEach((j) => {
-        if (j.status === 'offline') return;
-        const assignedDrv = drivers.find(
-          (d) =>
-            d.id === j.assignedDriverId ||
-            d.assignedJeepneyId === j.id ||
-            (j.driverName && d.fullName.toLowerCase() === j.driverName.toLowerCase())
-        );
-        if (!assignedDrv || assignedDrv.status !== 'on_duty' || assignedDrv.accountStatus === 'suspended') {
-          updateJeepney(j.id, {
-            status: 'offline',
-            speedKmh: 0,
-            etaMinutes: 0,
-            distanceRemainingKm: 0,
-            lastGpsUpdate: 'Offline',
-          });
-        }
-      });
-    }
-  }, [drivers, currentDriver, jeepneys, updateJeepney]);
+  }, [currentRole, currentDriver, jeepneys, updateJeepney]);
 
   // Determine active jeepney assigned to current driver
   const assignedJeepney = (currentDriver?.assignedJeepneyId && jeepneys.find(j => j.id === currentDriver.assignedJeepneyId))

@@ -106,8 +106,8 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, [currentRole]);
 
-  // Single unified session across all roles
-  const activeUser = isOperatorAuthenticated && currentOperator
+  // Prioritize the authenticated session matching the active portal role
+  const operatorUser = isOperatorAuthenticated && currentOperator
     ? {
         name: currentOperator.name.split('(')[0].trim(),
         roleLabel: currentOperator.role === 'admin' ? 'Lead Dispatcher' : 'Controller',
@@ -117,7 +117,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         badgeBg: 'bg-indigo-50 dark:bg-indigo-950/60 border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-300',
         logout: logoutOperator,
       }
-    : isDriverAuthenticated && currentDriver
+    : null;
+
+  const driverUser = isDriverAuthenticated && currentDriver
     ? {
         name: currentDriver.fullName,
         roleLabel: `Driver @${currentDriver.username}`,
@@ -127,7 +129,9 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         badgeBg: 'bg-blue-50 dark:bg-blue-950/60 border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-300',
         logout: logoutDriver,
       }
-    : isCommuterAuthenticated && currentCommuter
+    : null;
+
+  const commuterUser = isCommuterAuthenticated && currentCommuter
     ? {
         name: currentCommuter.fullName,
         roleLabel: currentCommuter.commuterType === 'student' ? 'PLMun Student' : currentCommuter.commuterType === 'faculty' ? 'PLMun Faculty' : 'PLMun Staff',
@@ -138,6 +142,15 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
         logout: logoutCommuter,
       }
     : null;
+
+  const activeUser =
+    currentRole === 'commuter'
+      ? (commuterUser || driverUser || operatorUser)
+      : currentRole === 'driver'
+      ? (driverUser || operatorUser || commuterUser)
+      : (currentRole === 'operator' || currentRole === 'admin')
+      ? (operatorUser || driverUser || commuterUser)
+      : (commuterUser || driverUser || operatorUser);
 
   useEffect(() => {
     const updateTime = () => {

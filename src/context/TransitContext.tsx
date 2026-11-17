@@ -46,7 +46,7 @@ interface TransitContextType {
   updateJeepneyLocation: (id: string, lat: number, lng: number, speed?: number, heading?: number, accuracy?: number) => void;
   
   // Trip actions (from Driver Console / Control Center)
-  startTrip: (jeepneyId: string, direction?: TripDirection, options?: { preserveLocation?: boolean }) => void;
+  startTrip: (jeepneyId: string, direction?: TripDirection, options?: { preserveLocation?: boolean; driverName?: string; assignedDriverId?: string }) => void;
   endTrip: (jeepneyId: string, options?: { preserveLocation?: boolean }) => void;
   
   // Alert actions
@@ -272,24 +272,12 @@ const INITIAL_FLEET: Jeepney[] = [
 
 export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Initialize State with persistent LocalStorage
-  // If no driver session is currently active, ensure units do not stay stuck online from a logged-out session
   const [jeepneys, setJeepneys] = useState<Jeepney[]>(() => {
-    const hasActiveDriverSession = !!localStorage.getItem('jeeptrack_driver_session');
     try {
       const saved = localStorage.getItem(STORAGE_JEEPNEYS);
       if (saved) {
         const parsed = JSON.parse(saved) as Jeepney[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          if (!hasActiveDriverSession) {
-            return parsed.map((j) => ({
-              ...j,
-              status: 'offline' as const,
-              speedKmh: 0,
-              etaMinutes: 0,
-              distanceRemainingKm: 0,
-              lastGpsUpdate: 'Offline',
-            }));
-          }
           return parsed;
         }
       }
@@ -539,6 +527,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const updateJeepney = useCallback((id: string, updates: Partial<Jeepney>) => {
     setJeepneys((prev) => {
       const next = prev.map((j) => (j.id === id ? { ...j, ...updates } : j));
+      try {
+        localStorage.setItem(STORAGE_JEEPNEYS, JSON.stringify(next));
+      } catch (e) {}
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
@@ -558,6 +549,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       if (!target) return prev;
       const validCount = Math.max(0, Math.min(target.capacity, count));
       const next = prev.map(j => j.id === id ? { ...j, currentPassengers: validCount } : j);
+      try {
+        localStorage.setItem(STORAGE_JEEPNEYS, JSON.stringify(next));
+      } catch (e) {}
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
@@ -577,6 +571,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           lastGpsUpdate: 'Just now',
         };
       });
+      try {
+        localStorage.setItem(STORAGE_JEEPNEYS, JSON.stringify(next));
+      } catch (e) {}
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
@@ -588,7 +585,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const startTrip = (
     jeepneyId: string,
     direction: TripDirection = 'PLMun_to_Alabang',
-    options?: { preserveLocation?: boolean }
+    options?: { preserveLocation?: boolean; driverName?: string; assignedDriverId?: string }
   ) => {
     const nowTime = new Date().toLocaleTimeString('en-PH', {
       hour: '2-digit',
@@ -621,6 +618,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           ...j,
           status: 'en_route' as const,
           direction: direction,
+          driverName: options?.driverName || j.driverName,
+          assignedDriverId: options?.assignedDriverId || j.assignedDriverId,
           currentLat: latToUse,
           currentLng: lngToUse,
           heading: preserveLoc ? j.heading : roadPos.bearing,
@@ -639,8 +638,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         tripNumber: `TRP-${Date.now().toString().slice(-4)}`,
         jeepneyId: target.id,
         jeepneyCode: target.jeepneyCode,
-        driverId: target.assignedDriverId || 'drv-live',
-        driverName: target.driverName || 'Authorized Driver',
+        driverId: options?.assignedDriverId || target.assignedDriverId || 'drv-live',
+        driverName: options?.driverName || target.driverName || 'Authorized Driver',
         routeId: 'route-plmun-alabang-01',
         direction: direction,
         startTime: nowTime,
@@ -652,6 +651,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
 
       setTrips(old => [newTrip, ...old]);
+      try {
+        localStorage.setItem(STORAGE_JEEPNEYS, JSON.stringify(next));
+      } catch (e) {}
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
@@ -721,6 +723,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       };
       setGeofenceEvents(old => [geoEvent, ...old]);
 
+      try {
+        localStorage.setItem(STORAGE_JEEPNEYS, JSON.stringify(next));
+      } catch (e) {}
       channelRef.current?.postMessage({ type: 'SYNC_FLEET', payload: next });
       return next;
     });
