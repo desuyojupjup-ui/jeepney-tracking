@@ -106,14 +106,15 @@ function AppContent() {
       userName = currentDriver?.fullName || 'Driver';
       roleLabel = 'PUJ Driver';
 
-      // Set the driver's assigned jeepney offline immediately when signing out from the Driver Portal
       const driverJeepney =
         (currentDriver?.assignedJeepneyId && jeepneys.find((j) => j.id === currentDriver.assignedJeepneyId)) ||
         (currentDriver && jeepneys.find((j) => j.assignedDriverId === currentDriver.id)) ||
         (currentDriver && jeepneys.find((j) => j.driverName?.toLowerCase() === currentDriver.fullName.toLowerCase())) ||
         (jeepneys.length === 1 ? jeepneys[0] : undefined);
 
-      if (driverJeepney) {
+      // If the driver started a trip (en_route), keep the trip and driver online so Student & Admin Portals display it
+      const hasActiveTrip = driverJeepney?.status === 'en_route';
+      if (driverJeepney && !hasActiveTrip) {
         updateJeepney(driverJeepney.id, {
           status: 'offline',
           speedKmh: 0,
@@ -123,7 +124,7 @@ function AppContent() {
           lastGpsUpdate: 'Offline',
         });
       }
-      logoutDriver();
+      logoutDriver({ keepOnDuty: hasActiveTrip });
     } else if (currentRole === 'commuter') {
       userName = currentCommuter?.fullName || 'Commuter';
       roleLabel = 'Commuter';
@@ -145,7 +146,8 @@ function AppContent() {
         jeepneys.find((j) => j.driverName?.toLowerCase() === currentDriver.fullName.toLowerCase()) ||
         (jeepneys.length === 1 ? jeepneys[0] : undefined);
 
-      if (driverJeepney) {
+      const hasActiveTrip = driverJeepney?.status === 'en_route';
+      if (driverJeepney && !hasActiveTrip) {
         updateJeepney(driverJeepney.id, {
           status: 'offline',
           speedKmh: 0,
@@ -155,7 +157,7 @@ function AppContent() {
           lastGpsUpdate: 'Offline',
         });
       }
-      logoutDriver();
+      logoutDriver({ keepOnDuty: hasActiveTrip });
     }
 
     try {

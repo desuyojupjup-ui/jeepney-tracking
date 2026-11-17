@@ -56,7 +56,7 @@ interface AuthContextType {
   loginOperator: (usernameOrEmail: string, password: string) => { success: boolean; error?: string };
   logoutOperator: () => void;
   loginDriver: (username: string, password: string) => { success: boolean; error?: string };
-  logoutDriver: () => void;
+  logoutDriver: (options?: { keepOnDuty?: boolean }) => void;
   loginCommuter: (idOrEmail: string, password: string) => { success: boolean; error?: string; commuter?: CommuterUser };
   registerCommuter: (data: {
     fullName: string;
@@ -253,9 +253,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       refreshCommuters();
     };
 
+    const syncInterval = setInterval(() => {
+      try {
+        const savedDrivers = localStorage.getItem(DRIVERS_STORAGE_KEY);
+        if (savedDrivers) {
+          const parsedD = JSON.parse(savedDrivers);
+          if (Array.isArray(parsedD) && parsedD.length > 0) {
+            setDrivers((prev) =>
+              JSON.stringify(prev) !== savedDrivers ? parsedD : prev
+            );
+          }
+        }
+      } catch (e) {}
+    }, 1500);
+
     window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
     return () => {
+      clearInterval(syncInterval);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
       authChannelRef.current?.close();
@@ -336,24 +351,58 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(nextDrivers));
       authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: nextDrivers });
+
+      // Immediately bring the driver's assigned jeepney online in fleet storage & broadcast across tabs
+      const fleetRaw = localStorage.getItem('jeeptrack_fleet_units_v4');
+      if (fleetRaw) {
+        const fleet = JSON.parse(fleetRaw);
+        if (Array.isArray(fleet) && fleet.length > 0) {
+          const targetIdx = fleet.findIndex(
+            (j: any) =>
+              (updatedDriver.assignedJeepneyId && j.id === updatedDriver.assignedJeepneyId) ||
+              j.assignedDriverId === updatedDriver.id ||
+              (j.driverName && j.driverName.toLowerCase() === updatedDriver.fullName.toLowerCase())
+          );
+          const idxToUpdate = targetIdx >= 0 ? targetIdx : 0;
+          const nextFleet = fleet.map((j: any, i: number) =>
+            i === idxToUpdate
+              ? {
+                  ...j,
+                  status: j.status === 'offline' ? 'at_terminal' : j.status,
+                  driverName: updatedDriver.fullName,
+                  assignedDriverId: updatedDriver.id,
+                  lastGpsUpdate: 'Just now',
+                }
+              : j
+          );
+          localStorage.setItem('jeeptrack_fleet_units_v4', JSON.stringify(nextFleet));
+          try {
+            const transitChannel = new BroadcastChannel('jeeptrack_transit_sync');
+            transitChannel.postMessage({ type: 'SYNC_FLEET', payload: nextFleet });
+            transitChannel.close();
+          } catch (err) {}
+        }
+      }
     } catch (e) {}
     setCurrentDriver(updatedDriver);
     localStorage.setItem(DRIVER_SESSION_KEY, JSON.stringify(updatedDriver));
     return { success: true };
   };
 
-  // Driver Logout (Marks the driver off_duty and broadcasts across tabs so Student Portal immediately sees them offline)
-  const logoutDriver = () => {
-    setDrivers((prev) => {
-      const next = prev.map((d) =>
-        !currentDriver || d.id === currentDriver.id ? { ...d, status: 'off_duty' as const } : d
-      );
-      try {
-        localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(next));
-        authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: next });
-      } catch (e) {}
-      return next;
-    });
+  // Driver Logout (Marks the driver off_duty unless an active trip is in progress, and broadcasts across tabs)
+  const logoutDriver = (options?: { keepOnDuty?: boolean }) => {
+    if (!options?.keepOnDuty) {
+      setDrivers((prev) => {
+        const next = prev.map((d) =>
+          !currentDriver || d.id === currentDriver.id ? { ...d, status: 'off_duty' as const } : d
+        );
+        try {
+          localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(next));
+          authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: next });
+        } catch (e) {}
+        return next;
+      });
+    }
     setCurrentDriver(null);
     localStorage.removeItem(DRIVER_SESSION_KEY);
   };

@@ -123,9 +123,27 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     setRevealedPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Enrich drivers with live jeepney status so any driver with an active/online jeepney is shown On Duty
+  const enrichedDrivers = useMemo(() => {
+    return drivers.map((d) => {
+      const assignedJeep = jeepneys.find(
+        (j) =>
+          j.id === d.assignedJeepneyId ||
+          j.assignedDriverId === d.id ||
+          (j.driverName && j.driverName.toLowerCase() === d.fullName.toLowerCase())
+      );
+      const isJeepneyOnline = assignedJeep && (assignedJeep.status === 'en_route' || assignedJeep.status === 'at_terminal');
+      return {
+        ...d,
+        assignedJeepneyId: d.assignedJeepneyId || assignedJeep?.id,
+        status: isJeepneyOnline && d.accountStatus !== 'suspended' ? ('on_duty' as const) : d.status,
+      };
+    });
+  }, [drivers, jeepneys]);
+
   // Filtered Drivers
   const filteredDrivers = useMemo(() => {
-    return drivers.filter((d) => {
+    return enrichedDrivers.filter((d) => {
       const q = searchQuery.toLowerCase();
       const matchesSearch = d.fullName.toLowerCase().includes(q) ||
                             d.username.toLowerCase().includes(q) ||
@@ -135,7 +153,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                             (statusFilter === 'suspended' ? d.accountStatus === 'suspended' : d.status === statusFilter);
       return matchesSearch && matchesStatus;
     });
-  }, [drivers, searchQuery, statusFilter]);
+  }, [enrichedDrivers, searchQuery, statusFilter]);
 
   // Filtered Jeepneys
   const filteredJeepneys = useMemo(() => {
@@ -150,10 +168,10 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
   }, [jeepneys, searchQuery, statusFilter]);
 
   // KPI Calculations
-  const totalDrivers = drivers.length;
-  const onDutyDrivers = drivers.filter(d => d.status === 'on_duty' && d.accountStatus !== 'suspended').length;
-  const onBreakDrivers = drivers.filter(d => d.status === 'on_break').length;
-  const offDutyDrivers = drivers.filter(d => d.status === 'off_duty' || d.accountStatus === 'suspended').length;
+  const totalDrivers = enrichedDrivers.length;
+  const onDutyDrivers = enrichedDrivers.filter(d => d.status === 'on_duty' && d.accountStatus !== 'suspended').length;
+  const onBreakDrivers = enrichedDrivers.filter(d => d.status === 'on_break').length;
+  const offDutyDrivers = enrichedDrivers.filter(d => d.status === 'off_duty' || d.accountStatus === 'suspended').length;
 
   const totalJeeps = jeepneys.length;
   const enRouteJeeps = jeepneys.filter(j => j.status === 'en_route').length;

@@ -406,9 +406,24 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } catch (err) {}
     };
 
+    const syncInterval = setInterval(() => {
+      try {
+        const saved = localStorage.getItem(STORAGE_JEEPNEYS);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setJeepneys((prev) =>
+              JSON.stringify(prev) !== saved ? parsed : prev
+            );
+          }
+        }
+      } catch (err) {}
+    }, 1500);
+
     window.addEventListener('storage', handleStorage);
     window.addEventListener('focus', handleFocus);
     return () => {
+      clearInterval(syncInterval);
       window.removeEventListener('storage', handleStorage);
       window.removeEventListener('focus', handleFocus);
     };

@@ -107,19 +107,18 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       onRequestSignOut();
       return;
     }
-    const confirmLogout = window.confirm('End shift and sign out? Your vehicle will go offline.');
+    const confirmLogout = window.confirm('Sign out of Driver Console?');
     if (confirmLogout) {
-      if (isTripActive) {
-        endTrip(activeJeepney.id);
+      if (!isTripActive) {
+        updateJeepney(activeJeepney.id, {
+          status: 'offline',
+          speedKmh: 0,
+          etaMinutes: 0,
+          distanceRemainingKm: 0,
+          lastGpsUpdate: 'Offline',
+        });
       }
-      updateJeepney(activeJeepney.id, {
-        status: 'offline',
-        speedKmh: 0,
-        etaMinutes: 0,
-        distanceRemainingKm: 0,
-        lastGpsUpdate: 'Offline',
-      });
-      logoutDriver();
+      logoutDriver({ keepOnDuty: isTripActive });
       if (onLogout) onLogout();
     }
   };
@@ -272,7 +271,6 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
             speedKmh: cachedGps.speed || 0,
             heading: cachedGps.heading || latestHeadingRef.current,
             accuracyMeters: roundedAcc,
-            status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
             lastGpsUpdate: 'Just now',
           });
         }
@@ -302,7 +300,6 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
             speedKmh: speedKmh,
             heading: nextHeading,
             accuracyMeters: roundedAcc,
-            status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
             lastGpsUpdate: 'Just now',
           });
         },
