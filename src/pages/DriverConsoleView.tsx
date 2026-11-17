@@ -96,7 +96,9 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     const nextStatus = activeDutyStatus === 'on_duty' ? 'on_break' : 'on_duty';
     updateDriver(currentDriver.id, { status: nextStatus });
     if (nextStatus === 'on_break') {
-      updateJeepney(activeJeepney.id, { status: 'at_terminal', speedKmh: 0 });
+      updateJeepney(activeJeepney.id, { status: 'offline', speedKmh: 0, lastGpsUpdate: 'On Break' });
+    } else {
+      updateJeepney(activeJeepney.id, { status: 'at_terminal', speedKmh: 0, lastGpsUpdate: 'Just now' });
     }
   };
 

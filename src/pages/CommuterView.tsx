@@ -65,31 +65,29 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
     setLocateTrigger(prev => prev + 1);
   };
 
-  // Enrich jeepneys with live driver account data so any online / on-duty driver is always visible
+  // Enrich jeepneys with live driver account data and strictly respect offline / logged-out status
   const enrichedJeepneys = React.useMemo(() => {
-    const onDutyDrivers = drivers.filter(
-      (d) => (d.status === 'on_duty' || d.id === currentDriver?.id) && d.accountStatus !== 'suspended'
-    );
+    return jeepneys.map((j) => {
+      const matchedDriver = drivers.find(
+        (d) =>
+          d.id === j.assignedDriverId ||
+          d.assignedJeepneyId === j.id ||
+          (j.driverName && d.fullName.toLowerCase() === j.driverName.toLowerCase())
+      );
 
-    return jeepneys.map((j, index) => {
-      const matchedDriver =
-        drivers.find(
-          (d) =>
-            d.id === j.assignedDriverId ||
-            d.assignedJeepneyId === j.id ||
-            (j.driverName && d.fullName.toLowerCase() === j.driverName.toLowerCase())
-        ) || (jeepneys.length === 1 && onDutyDrivers.length > 0 ? onDutyDrivers[0] : onDutyDrivers[index]);
-
-      const isDriverOnline =
+      // If the assigned driver logged out (off_duty) or is on_break or suspended, treat the vehicle as offline
+      const isDriverLoggedOut =
         matchedDriver &&
-        (matchedDriver.status === 'on_duty' || matchedDriver.id === currentDriver?.id) &&
-        matchedDriver.accountStatus !== 'suspended';
+        (matchedDriver.status === 'off_duty' ||
+          matchedDriver.status === 'on_break' ||
+          matchedDriver.accountStatus === 'suspended') &&
+        matchedDriver.id !== currentDriver?.id;
 
       return {
         ...j,
         driverName: matchedDriver?.fullName || j.driverName || 'Authorized PLMun Driver',
         assignedDriverId: matchedDriver?.id || j.assignedDriverId,
-        status: j.status === 'offline' && isDriverOnline ? ('at_terminal' as const) : j.status,
+        status: isDriverLoggedOut ? ('offline' as const) : j.status,
       };
     });
   }, [jeepneys, drivers, currentDriver]);

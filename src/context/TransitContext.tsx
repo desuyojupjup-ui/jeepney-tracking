@@ -272,10 +272,27 @@ const INITIAL_FLEET: Jeepney[] = [
 
 export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Initialize State with persistent LocalStorage
+  // If no driver session is currently active, ensure units do not stay stuck online from a logged-out session
   const [jeepneys, setJeepneys] = useState<Jeepney[]>(() => {
+    const hasActiveDriverSession = !!localStorage.getItem('jeeptrack_driver_session');
     try {
       const saved = localStorage.getItem(STORAGE_JEEPNEYS);
-      if (saved) return JSON.parse(saved);
+      if (saved) {
+        const parsed = JSON.parse(saved) as Jeepney[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          if (!hasActiveDriverSession) {
+            return parsed.map((j) => ({
+              ...j,
+              status: 'offline' as const,
+              speedKmh: 0,
+              etaMinutes: 0,
+              distanceRemainingKm: 0,
+              lastGpsUpdate: 'Offline',
+            }));
+          }
+          return parsed;
+        }
+      }
     } catch (e) {
       console.error('Failed to load fleet from localStorage:', e);
     }
