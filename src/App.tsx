@@ -34,6 +34,7 @@ function AppContent() {
     currentDriver,
     currentCommuter,
     currentOperator,
+    drivers,
     logoutOperator,
     logoutDriver,
     logoutCommuter,
@@ -147,8 +148,8 @@ function AppContent() {
     else if (!prev.driver && isDriverAuthenticated) {
       setCurrentRole('driver');
     }
-    // User newly signed in as commuter
-    else if (!prev.commuter && isCommuterAuthenticated) {
+    // User newly signed in as commuter (do not hijack if operator is actively in Admin Portal)
+    else if (!prev.commuter && isCommuterAuthenticated && !isOperatorAuthenticated) {
       setCurrentRole('commuter');
     }
     // Any user signed out
@@ -182,9 +183,42 @@ function AppContent() {
     trips,
     kpis,
     hourlyData,
+    updateJeepney,
     acknowledgeAlert,
     resolveAlert,
   } = useTransit();
+
+  // Automatically keep on-duty / logged-in drivers linked and online on their assigned jeepney
+  // so the Student Portal always sees online/active drivers and their assigned units
+  useEffect(() => {
+    const activeDrivers = drivers.filter(
+      (d) => (d.status === 'on_duty' || d.id === currentDriver?.id) && d.accountStatus !== 'suspended'
+    );
+    if (activeDrivers.length === 0 || jeepneys.length === 0) return;
+
+    activeDrivers.forEach((drv) => {
+      const matchedJeepney =
+        (drv.assignedJeepneyId && jeepneys.find((j) => j.id === drv.assignedJeepneyId)) ||
+        jeepneys.find((j) => j.assignedDriverId === drv.id) ||
+        jeepneys.find((j) => j.driverName?.toLowerCase() === drv.fullName.toLowerCase()) ||
+        (jeepneys.length === 1 ? jeepneys[0] : undefined);
+
+      if (matchedJeepney) {
+        const needsOnline = matchedJeepney.status === 'offline';
+        const needsDriverLink =
+          matchedJeepney.driverName !== drv.fullName || matchedJeepney.assignedDriverId !== drv.id;
+
+        if (needsOnline || needsDriverLink) {
+          updateJeepney(matchedJeepney.id, {
+            status: needsOnline ? 'at_terminal' : matchedJeepney.status,
+            driverName: drv.fullName,
+            assignedDriverId: drv.id,
+            lastGpsUpdate: needsOnline ? 'Online' : matchedJeepney.lastGpsUpdate,
+          });
+        }
+      }
+    });
+  }, [drivers, currentDriver, jeepneys, updateJeepney]);
 
   // Determine active jeepney assigned to current driver
   const assignedJeepney = (currentDriver?.assignedJeepneyId && jeepneys.find(j => j.id === currentDriver.assignedJeepneyId))

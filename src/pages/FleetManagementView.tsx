@@ -364,9 +364,15 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
 
     if (res.success && res.driver) {
       if (assignedJeepneyId) {
+        const targetUnit = jeepneys.find(j => j.id === assignedJeepneyId);
         updateJeepney(assignedJeepneyId, {
           assignedDriverId: res.driver.id,
           driverName: res.driver.fullName,
+          status:
+            initialDutyStatus === 'on_duty' && (!targetUnit || targetUnit.status === 'offline')
+              ? 'at_terminal'
+              : targetUnit?.status || 'at_terminal',
+          lastGpsUpdate: initialDutyStatus === 'on_duty' ? 'Just now' : targetUnit?.lastGpsUpdate || 'Offline',
         });
       }
       setShowAddDriverModal(false);

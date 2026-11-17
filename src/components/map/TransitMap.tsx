@@ -39,6 +39,7 @@ interface TransitMapProps {
   stops: RouteStop[];
   routePath: [number, number][];
   selectedJeepneyId?: string | null;
+  locateTrigger?: number;
   onSelectJeepney?: (jeepney: Jeepney) => void;
   height?: string;
   showControls?: boolean;
@@ -51,21 +52,17 @@ interface TransitMapProps {
 // Controller component to smoothly pan to coordinates without shaking or zoom bouncing
 function MapController({ 
   targetCoord, 
-  zoomLevel 
+  zoomLevel,
+  panKey,
 }: { 
   targetCoord: [number, number] | null; 
   zoomLevel?: number;
+  panKey?: number;
 }) {
   const map = useMap();
-  const lastTargetRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!targetCoord) return;
-
-    // Check if we already panned to this spot to avoid jitter loops
-    const coordKey = `${targetCoord[0].toFixed(5)},${targetCoord[1].toFixed(5)}`;
-    if (lastTargetRef.current === coordKey) return;
-    lastTargetRef.current = coordKey;
 
     // Stop any pending Leaflet animations so they don't fight and cause shaking
     map.stop();
@@ -74,7 +71,7 @@ function MapController({
     const distMeters = map.distance(currentCenter, L.latLng(targetCoord[0], targetCoord[1]));
 
     // If already centered near target, do nothing
-    if (distMeters < 25) return;
+    if (distMeters < 15) return;
 
     // Smooth gentle pan without parabolic fly zoom bounce
     map.panTo(targetCoord, {
@@ -82,7 +79,7 @@ function MapController({
       duration: 0.6,
       easeLinearity: 0.2,
     });
-  }, [targetCoord, zoomLevel, map]);
+  }, [targetCoord, zoomLevel, panKey, map]);
 
   return null;
 }
@@ -258,6 +255,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
   stops,
   routePath,
   selectedJeepneyId,
+  locateTrigger = 0,
   onSelectJeepney,
   height = '620px',
   showControls = true,
@@ -285,19 +283,17 @@ export const TransitMap: React.FC<TransitMapProps> = ({
     }
   }, [appTheme]);
 
-  // Watch for selected jeepney changes: ONLY pan ONCE when selectedJeepneyId changes!
-  const prevSelectedJeepneyId = useRef<string | null>(null);
+  // Watch for selected jeepney or explicit locate button clicks
+  const [panKey, setPanKey] = useState(0);
   useEffect(() => {
-    if (selectedJeepneyId && selectedJeepneyId !== prevSelectedJeepneyId.current) {
-      prevSelectedJeepneyId.current = selectedJeepneyId;
+    if (selectedJeepneyId) {
       const puj = jeepneys.find(j => j.id === selectedJeepneyId);
       if (puj) {
         setTargetCoord([puj.currentLat, puj.currentLng]);
+        setPanKey(prev => prev + 1);
       }
-    } else if (!selectedJeepneyId) {
-      prevSelectedJeepneyId.current = null;
     }
-  }, [selectedJeepneyId]);
+  }, [selectedJeepneyId, locateTrigger]);
 
   // Google Maps Red Teardrop Destination Pin for Alabang
   const createGoogleRedPin = (label: string) => {
@@ -366,7 +362,8 @@ export const TransitMap: React.FC<TransitMapProps> = ({
       : (jeepney.direction === 'Alabang_to_PLMun' ? 195 : 15);
     const headingDeg = Math.round(rawHeading / 5) * 5;
 
-    const cacheKey = `${jeepney.id}-${headingDeg}-${isSelected ? '1' : '0'}-${jeepney.status}-${jeepney.etaMinutes || 0}-${jeepney.modelType}`;
+    const driverShort = jeepney.driverName ? jeepney.driverName.split(' ')[0] : 'Online';
+    const cacheKey = `${jeepney.id}-${headingDeg}-${isSelected ? '1' : '0'}-${jeepney.status}-${jeepney.etaMinutes || 0}-${jeepney.modelType}-${driverShort}`;
     if (iconCacheRef.current[cacheKey]) {
       return iconCacheRef.current[cacheKey];
     }
@@ -384,16 +381,17 @@ export const TransitMap: React.FC<TransitMapProps> = ({
     const icon = L.divIcon({
       html: `
         <div class="relative w-[60px] h-[70px] flex items-center justify-center cursor-pointer select-none" style="will-change: transform; transform: translateZ(0); backface-visibility: hidden; -webkit-backface-visibility: hidden;">
-          <!-- Floating Upright Code & ETA Badge (Level and always readable!) -->
-          <div class="absolute -top-3 z-20 flex items-center gap-1 bg-slate-900/95 backdrop-blur-md px-2 py-0.5 rounded-full shadow-lg border text-white font-mono text-[10px] font-extrabold whitespace-nowrap transition-all ${
+          <!-- Floating Upright Code, Driver & Status Badge (Level and always readable!) -->
+          <div class="absolute -top-3.5 z-20 flex items-center gap-1 bg-slate-900/95 backdrop-blur-md px-2 py-0.5 rounded-full shadow-lg border text-white font-mono text-[10px] font-extrabold whitespace-nowrap transition-all ${
             isSelected 
               ? 'border-[#00B14F] ring-2 ring-[#00B14F]/60 shadow-emerald-500/30' 
               : 'border-slate-700/80 hover:border-slate-500'
           }">
-            <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: ${bodyColor};"></span>
+            <span class="w-1.5 h-1.5 rounded-full shrink-0 animate-pulse" style="background-color: ${bodyColor};"></span>
             <span class="tracking-tight text-white">${jeepney.jeepneyCode}</span>
+            <span class="text-slate-400 font-sans text-[9px] font-semibold">• ${driverShort}</span>
             <span class="text-slate-500 font-sans text-[8px]">•</span>
-            <span class="text-emerald-400 font-bold">${jeepney.etaMinutes ? `${jeepney.etaMinutes}m` : '0m'}</span>
+            <span class="text-emerald-400 font-bold">${jeepney.etaMinutes ? `${jeepney.etaMinutes}m` : 'LIVE'}</span>
           </div>
 
           <!-- Pulsing Radar Glow Halo when Selected or in Motion (Soft, non-strobe) -->
@@ -722,7 +720,7 @@ export const TransitMap: React.FC<TransitMapProps> = ({
         zoomControl={false} // Disabled default Leaflet control for Google Maps controls
         style={{ height: '100%', width: '100%' }}
       >
-        <MapController targetCoord={targetCoord} />
+        <MapController targetCoord={targetCoord} panKey={panKey} />
         <MapResizer />
         <ScaleControl position="bottomright" metric={true} imperial={false} />
         
@@ -903,12 +901,19 @@ export const TransitMap: React.FC<TransitMapProps> = ({
           </Marker>
         ))}
 
-        {/* Live Jeepney Pucks */}
-        {jeepneys.map((puj) => (
+        {/* Live Jeepney Pucks (Elevated zIndexOffset and bay offset so terminal pins never cover online jeepneys) */}
+        {jeepneys.map((puj, idx) => {
+          const nearPlmun = Math.hypot(puj.currentLat - 14.38909, puj.currentLng - 121.02559) < 0.00035;
+          const nearAlabang = Math.hypot(puj.currentLat - 14.42076, puj.currentLng - 121.04357) < 0.00035;
+          const displayLat = nearPlmun || nearAlabang ? puj.currentLat + 0.00028 : puj.currentLat;
+          const displayLng = nearPlmun || nearAlabang ? puj.currentLng + 0.00038 + (idx % 3) * 0.00022 : puj.currentLng;
+
+          return (
           <Marker
             key={puj.id}
-            position={[puj.currentLat, puj.currentLng]}
+            position={[displayLat, displayLng]}
             icon={getGoogleJeepneyPuck(puj, puj.id === selectedJeepneyId)}
+            zIndexOffset={puj.id === selectedJeepneyId ? 2500 : 1500}
             eventHandlers={{
               click: () => onSelectJeepney && onSelectJeepney(puj),
             }}
@@ -973,7 +978,8 @@ export const TransitMap: React.FC<TransitMapProps> = ({
               </div>
             </Popup>
           </Marker>
-        ))}
+          );
+        })}
       </MapContainer>
     </div>
   );

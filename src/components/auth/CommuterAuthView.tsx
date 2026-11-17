@@ -427,7 +427,9 @@ export const CommuterAuthView: React.FC<CommuterAuthViewProps> = ({
                 School Email Address <span className="text-rose-500">*</span>
               </label>
               <input
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
                 required
                 value={regEmail}
                 onChange={(e) => {

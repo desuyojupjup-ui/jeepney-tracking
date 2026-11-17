@@ -445,11 +445,8 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
                 required
                 value={regIdNumber}
                 onChange={(e) => {
-                  const val = e.target.value;
-                  setRegIdNumber(val);
-                  if (!regEmail && val) {
-                    setRegEmail(`${val.toLowerCase().replace(/[^a-z0-9]/g, '')}@plmun.edu.ph`);
-                  }
+                  setRegIdNumber(e.target.value);
+                  if (regError) setRegError(null);
                 }}
                 placeholder={regCommuterType === 'student' ? '2023-01234' : 'FAC-2020-001'}
                 className="w-full px-3.5 py-2 rounded-[7px] border border-slate-200 dark:border-slate-700 bg-white dark:bg-[#181a24] text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400"
@@ -462,7 +459,9 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
                 School Email Address <span className="text-rose-500">*</span>
               </label>
               <input
-                type="email"
+                type="text"
+                inputMode="email"
+                autoComplete="off"
                 required
                 value={regEmail}
                 onChange={(e) => {

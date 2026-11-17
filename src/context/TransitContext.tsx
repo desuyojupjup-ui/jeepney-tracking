@@ -368,6 +368,47 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, []);
 
+  // Also sync across browser tabs via StorageEvent & Window Focus
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.newValue) return;
+      try {
+        if (e.key === STORAGE_JEEPNEYS) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setJeepneys(parsed);
+        } else if (e.key === STORAGE_ALERTS) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setAlerts(parsed);
+        } else if (e.key === STORAGE_GEOFENCE) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setGeofenceEvents(parsed);
+        } else if (e.key === STORAGE_TRIPS) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setTrips(parsed);
+        }
+      } catch (err) {}
+    };
+
+    const handleFocus = () => {
+      try {
+        const saved = localStorage.getItem(STORAGE_JEEPNEYS);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setJeepneys(parsed);
+          }
+        }
+      } catch (err) {}
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, []);
+
   // Save to localStorage whenever state changes
   useEffect(() => {
     try {

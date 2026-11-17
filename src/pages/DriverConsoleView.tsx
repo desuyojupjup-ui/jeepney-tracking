@@ -122,19 +122,22 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     }
   };
 
-  // Bring driver's assigned jeepney online at terminal upon opening the console
+  // Bring driver's assigned jeepney online and sync driver identity upon opening the console
   useEffect(() => {
-    if (activeJeepney.status === 'offline') {
+    if (
+      activeJeepney.status === 'offline' ||
+      activeJeepney.driverName !== activeDriverName ||
+      (currentDriver?.id && activeJeepney.assignedDriverId !== currentDriver.id)
+    ) {
       updateJeepney(activeJeepney.id, {
-        status: 'at_terminal',
+        status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
         driverName: activeDriverName,
         assignedDriverId: currentDriver?.id,
         direction: direction,
-        speedKmh: 0,
         lastGpsUpdate: 'Just now',
       });
     }
-  }, [activeJeepney.id, activeJeepney.status, activeDriverName, currentDriver?.id, direction, updateJeepney]);
+  }, [activeJeepney.id, activeJeepney.status, activeJeepney.driverName, activeJeepney.assignedDriverId, activeDriverName, currentDriver?.id, direction, updateJeepney]);
 
   // Passenger Count Actions
   const handlePassengerChange = (delta: number) => {

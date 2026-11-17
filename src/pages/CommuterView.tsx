@@ -45,10 +45,11 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
   stops,
   route,
 }) => {
-  const { currentCommuter } = useAuth();
+  const { currentCommuter, drivers, currentDriver } = useAuth();
   const [selectedDirection, setSelectedDirection] = useState<'PLMun_to_Alabang' | 'Alabang_to_PLMun'>('PLMun_to_Alabang');
   const [selectedStopId, setSelectedStopId] = useState<string>(stops[0]?.id || '');
   const [selectedJeepneyId, setSelectedJeepneyId] = useState<string | null>(null);
+  const [locateTrigger, setLocateTrigger] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'modern_electric' | 'modern_euro4' | 'traditional_puj'>('all');
   
   // Default to collapsed peek mode so 80%+ of the screen is pure live map!
@@ -59,13 +60,54 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
   const [arrivalAlertSet, setArrivalAlertSet] = useState<boolean>(false);
   const [alertToast, setAlertToast] = useState<string | null>(null);
 
-  // Filter jeepneys heading toward selected destination or at terminals, matching vehicle category
-  const filteredJeepneys = jeepneys.filter((j) => {
-    if (j.status === 'offline') return false;
-    const matchesDirection = j.direction === selectedDirection || j.status === 'at_terminal';
-    const matchesCategory = selectedCategory === 'all' || j.modelType === selectedCategory;
-    return matchesDirection && matchesCategory;
-  });
+  const handleFocusJeepney = (id: string) => {
+    setSelectedJeepneyId(id);
+    setLocateTrigger(prev => prev + 1);
+  };
+
+  // Enrich jeepneys with live driver account data so any online / on-duty driver is always visible
+  const enrichedJeepneys = React.useMemo(() => {
+    const onDutyDrivers = drivers.filter(
+      (d) => (d.status === 'on_duty' || d.id === currentDriver?.id) && d.accountStatus !== 'suspended'
+    );
+
+    return jeepneys.map((j, index) => {
+      const matchedDriver =
+        drivers.find(
+          (d) =>
+            d.id === j.assignedDriverId ||
+            d.assignedJeepneyId === j.id ||
+            (j.driverName && d.fullName.toLowerCase() === j.driverName.toLowerCase())
+        ) || (jeepneys.length === 1 && onDutyDrivers.length > 0 ? onDutyDrivers[0] : onDutyDrivers[index]);
+
+      const isDriverOnline =
+        matchedDriver &&
+        (matchedDriver.status === 'on_duty' || matchedDriver.id === currentDriver?.id) &&
+        matchedDriver.accountStatus !== 'suspended';
+
+      return {
+        ...j,
+        driverName: matchedDriver?.fullName || j.driverName || 'Authorized PLMun Driver',
+        assignedDriverId: matchedDriver?.id || j.assignedDriverId,
+        status: j.status === 'offline' && isDriverOnline ? ('at_terminal' as const) : j.status,
+      };
+    });
+  }, [jeepneys, drivers, currentDriver]);
+
+  // Show all online/active jeepneys matching category (sorted with selectedDirection first so active drivers are never hidden)
+  const filteredJeepneys = React.useMemo(() => {
+    return enrichedJeepneys
+      .filter((j) => {
+        if (j.status === 'offline') return false;
+        const matchesCategory = selectedCategory === 'all' || j.modelType === selectedCategory;
+        return matchesCategory;
+      })
+      .sort((a, b) => {
+        const aMatchesDir = a.direction === selectedDirection ? 0 : 1;
+        const bMatchesDir = b.direction === selectedDirection ? 0 : 1;
+        return aMatchesDir - bMatchesDir;
+      });
+  }, [enrichedJeepneys, selectedCategory, selectedDirection]);
 
   const selectedStop = stops.find((s) => s.id === selectedStopId) || stops[0];
 
@@ -129,7 +171,8 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
           stops={stops}
           routePath={route.pathCoordinates}
           selectedJeepneyId={selectedJeepneyId}
-          onSelectJeepney={(j) => setSelectedJeepneyId(j.id)}
+          locateTrigger={locateTrigger}
+          onSelectJeepney={(j) => handleFocusJeepney(j.id)}
           height="100%"
           hideDefaultSearch={true}
         >
@@ -368,6 +411,71 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                   <span>Bays</span>
                 </button>
               </div>
+
+              {/* Live Online / Active Drivers Strip (Always visible so students immediately see online drivers) */}
+              <div className="pt-2 border-t border-gray-100 dark:border-slate-800 space-y-1.5">
+                <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2 h-2 rounded-full ${filteredJeepneys.length > 0 ? 'bg-[#00B14F] animate-ping' : 'bg-slate-400'}`}></span>
+                    <span>Online / Active Drivers ({filteredJeepneys.length})</span>
+                  </span>
+                  {filteredJeepneys.length > 0 && (
+                    <span className="text-[9px] text-[#00B14F] font-bold">Tap to locate</span>
+                  )}
+                </div>
+
+                {filteredJeepneys.length === 0 ? (
+                  <div className="px-2.5 py-2 rounded-xl bg-gray-50 dark:bg-[#141a29] border border-gray-200/80 dark:border-slate-800 text-[11px] text-gray-500 dark:text-slate-400">
+                    No active drivers currently online on this corridor.
+                  </div>
+                ) : (
+                  <div className="space-y-1.5 max-h-36 overflow-y-auto pr-0.5">
+                    {filteredJeepneys.map((puj) => {
+                      const isSel = selectedJeepneyId === puj.id;
+                      const free = puj.capacity - puj.currentPassengers;
+                      return (
+                        <div
+                          key={puj.id}
+                          onClick={() => handleFocusJeepney(puj.id)}
+                          className={`p-2 rounded-xl border flex items-center justify-between gap-2 cursor-pointer transition-all ${
+                            isSel
+                              ? 'bg-emerald-50/90 dark:bg-emerald-950/50 border-[#00B14F] ring-1 ring-[#00B14F]/40'
+                              : 'bg-gray-50/90 dark:bg-[#141a29] hover:bg-gray-100 dark:hover:bg-slate-800 border-gray-200/80 dark:border-slate-800'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="px-2 py-1 rounded-lg bg-[#00B14F] text-white font-mono font-black text-[11px] shrink-0">
+                              {puj.jeepneyCode}
+                            </span>
+                            <div className="min-w-0">
+                              <div className="text-xs font-extrabold text-gray-900 dark:text-white truncate flex items-center gap-1">
+                                <span className="truncate">{puj.driverName || 'Active Driver'}</span>
+                                <span className="px-1.5 py-0.2 rounded-full text-[9px] font-bold bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-300 uppercase shrink-0">
+                                  {puj.status === 'en_route' ? 'En Route' : 'Online'}
+                                </span>
+                              </div>
+                              <div className="text-[10px] text-gray-500 dark:text-slate-400 truncate">
+                                {free} seats free &bull; {puj.direction === 'PLMun_to_Alabang' ? 'PLMun ➔ Alabang' : 'Alabang ➔ PLMun'}
+                              </div>
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleFocusJeepney(puj.id);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-[#1A73E8] hover:bg-[#1557b0] text-white text-[10px] font-extrabold shrink-0 shadow-2xs cursor-pointer"
+                          >
+                            Locate
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Desktop Vehicle Fleet Filter Chips */}
@@ -556,19 +664,31 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                           </div>
                           <div className="text-[11px] text-gray-500 dark:text-slate-400 font-medium truncate">
                             {filteredJeepneys.length > 0 
-                              ? 'Click any jeepney on map or tap here to pick'
+                              ? `Online: ${filteredJeepneys.map(j => `${j.jeepneyCode} (${j.driverName || 'Active Driver'})`).join(' • ')}`
                               : 'Waiting for active driver trip broadcast • Staged at bay'}
                           </div>
                         </div>
                       </div>
 
-                      <button
-                        onClick={() => setIsBottomSheetExpanded(true)}
-                        className="bg-gray-900 hover:bg-gray-800 dark:bg-[#0f172a] dark:hover:bg-slate-900 dark:border dark:border-slate-700 text-white px-3.5 py-2 rounded-xl font-bold text-xs flex items-center gap-1 shadow-md active:scale-95 transition-all shrink-0"
-                      >
-                        <span>VIEW FLEET</span>
-                        <ChevronUp className="w-3.5 h-3.5 text-teal-400" />
-                      </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {filteredJeepneys.length > 0 && (
+                          <button
+                            onClick={() => handleFocusJeepney(filteredJeepneys[0].id)}
+                            className="bg-[#00B14F] hover:bg-[#009e45] text-white px-3 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1 shadow-md active:scale-95 transition-all cursor-pointer"
+                            title="Locate online driver on map"
+                          >
+                            <Navigation className="w-3.5 h-3.5 fill-current rotate-45" />
+                            <span>LOCATE</span>
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setIsBottomSheetExpanded(true)}
+                          className="bg-gray-900 hover:bg-gray-800 dark:bg-[#0f172a] dark:hover:bg-slate-900 dark:border dark:border-slate-700 text-white px-3 py-2 rounded-xl font-bold text-xs flex items-center gap-1 shadow-md active:scale-95 transition-all shrink-0 cursor-pointer"
+                        >
+                          <span>VIEW FLEET</span>
+                          <ChevronUp className="w-3.5 h-3.5 text-teal-400" />
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     /* Active vehicle state */
@@ -600,9 +720,9 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
                           onClick={() => {
-                            if (activeJeepney) setSelectedJeepneyId(activeJeepney.id);
+                            if (activeJeepney) handleFocusJeepney(activeJeepney.id);
                           }}
-                          className="bg-[#00B14F] hover:bg-[#009e45] text-white px-3 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all"
+                          className="bg-[#00B14F] hover:bg-[#009e45] text-white px-3 py-2 rounded-xl font-extrabold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition-all cursor-pointer"
                         >
                           <Navigation className="w-3.5 h-3.5 fill-current rotate-45" />
                           <span>TRACK</span>
@@ -771,7 +891,7 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                           return (
                             <div
                               key={puj.id}
-                              onClick={() => setSelectedJeepneyId(puj.id)}
+                              onClick={() => handleFocusJeepney(puj.id)}
                               className={`min-w-[120px] p-2 rounded-xl border transition-all cursor-pointer select-none ${
                                 isCurrent
                                   ? 'bg-emerald-50/80 dark:bg-emerald-950/50 border-[#00B14F] ring-2 ring-[#00B14F]/30 shadow-xs'
@@ -802,9 +922,9 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                     <div className="flex items-center gap-2 pt-0.5">
                       <button
                         onClick={() => {
-                          if (activeJeepney) setSelectedJeepneyId(activeJeepney.id);
+                          if (activeJeepney) handleFocusJeepney(activeJeepney.id);
                         }}
-                        className="flex-1 bg-gradient-to-r from-[#00B14F] to-emerald-600 hover:from-[#009e45] text-white py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all"
+                        className="flex-1 bg-gradient-to-r from-[#00B14F] to-emerald-600 hover:from-[#009e45] text-white py-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-all cursor-pointer"
                       >
                         <Navigation className="w-3.5 h-3.5 fill-current rotate-45" />
                         <span>TRACK {activeJeepney.jeepneyCode} LIVE</span>

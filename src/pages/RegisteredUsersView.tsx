@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { useAuth } from '../context/AuthContext';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useAuth, isValidPlmunEmail } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { CommuterUser, CommuterType } from '../types';
 import { 
@@ -35,9 +35,14 @@ export const RegisteredUsersView: React.FC = () => {
     commuters, 
     deleteCommuter, 
     toggleCommuterDiscount, 
-    registerCommuter 
+    registerCommuter,
+    refreshCommuters,
   } = useAuth();
   const { showToast } = useToast();
+
+  useEffect(() => {
+    refreshCommuters();
+  }, [refreshCommuters]);
 
   const [activeTab, setActiveTab] = useState<'all' | 'student' | 'faculty' | 'employee'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -50,6 +55,7 @@ export const RegisteredUsersView: React.FC = () => {
 
   // New User Registration Modal State
   const [showAddModal, setShowAddModal] = useState<boolean>(false);
+  const [addError, setAddError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     idNumber: '',
@@ -185,7 +191,15 @@ export const RegisteredUsersView: React.FC = () => {
 
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
-    const result = registerCommuter(formData);
+    setAddError(null);
+    const result = registerCommuter(
+      {
+        ...formData,
+        yearLevel: formData.commuterType === 'student' ? formData.yearLevel : undefined,
+        contactNumber: formData.contactNumber || '0900-000-0000',
+      },
+      { autoLogin: false }
+    );
     if (result.success) {
       showToast({
         type: 'success',
@@ -206,6 +220,7 @@ export const RegisteredUsersView: React.FC = () => {
         contactNumber: '',
       });
     } else {
+      setAddError(result.error || 'Unable to complete commuter registration.');
       showToast({
         type: 'error',
         title: 'Registration Error',
@@ -353,6 +368,7 @@ export const RegisteredUsersView: React.FC = () => {
 
             <button
               onClick={() => {
+                refreshCommuters();
                 setSearchQuery('');
                 setActiveTab('all');
                 setCurrentPage(1);
@@ -360,7 +376,7 @@ export const RegisteredUsersView: React.FC = () => {
                 showToast({
                   type: 'info',
                   title: 'Refreshed',
-                  message: 'Commuter directory refreshed.',
+                  message: 'Commuter directory synced with latest registered accounts.',
                   duration: 2000,
                 });
               }}
@@ -783,6 +799,12 @@ export const RegisteredUsersView: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateUser} className="space-y-3.5 text-xs">
+
+              {addError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 font-semibold">
+                  {addError}
+                </div>
+              )}
               
               {/* Role Type Selector */}
               <div className="space-y-1">
@@ -860,16 +882,34 @@ export const RegisteredUsersView: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700 dark:text-slate-300 block">
-                    PLMun / Active Email:
+                    PLMun School Email:
                   </label>
                   <input
-                    type="email"
+                    type="text"
+                    inputMode="email"
+                    autoComplete="off"
                     required
                     placeholder="name@plmun.edu.ph"
                     value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    onChange={(e) => {
+                      setFormData({ ...formData, email: e.target.value });
+                      if (addError) setAddError(null);
+                    }}
+                    className={`w-full bg-slate-50 dark:bg-slate-800 border rounded-xl px-3 py-2 font-medium text-slate-900 dark:text-white focus:outline-none focus:ring-2 ${
+                      formData.email.includes('@') && !isValidPlmunEmail(formData.email)
+                        ? 'border-rose-400 focus:ring-rose-500'
+                        : 'border-slate-200 dark:border-slate-700 focus:ring-emerald-500'
+                    }`}
                   />
+                  {formData.email.includes('@') && !isValidPlmunEmail(formData.email) ? (
+                    <span className="text-[10px] font-semibold text-rose-600 dark:text-rose-400 block">
+                      Only official @plmun.edu.ph school emails are allowed.
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-400 block">
+                      Official @plmun.edu.ph school email required
+                    </span>
+                  )}
                 </div>
 
                 <div className="space-y-1">

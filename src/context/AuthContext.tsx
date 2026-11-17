@@ -1,11 +1,47 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { Driver, OperatorAccount, CommuterUser } from '../types';
 import { MOCK_DRIVERS, MOCK_OPERATORS, MOCK_COMMUTERS } from '../data/mockData';
 
-export const PLMUN_EMAIL_REGEX = /^[a-z0-9._%+-]+@plmun\.edu\.ph$/i;
+// Accepts official PLMun school emails (including subdomains like @student.plmun.edu.ph, @cit.plmun.edu.ph, and common @plumn.edu.ph spelling)
+// Strictly rejects personal emails like @gmail.com, @yahoo.com, @outlook.com, @hotmail.com, @icloud.com
+export const PLMUN_EMAIL_REGEX = /^[^\s@]+@([a-z0-9-]+\.)*(plmun|plumn)\.edu(\.ph)?$/i;
+
+// Removes invisible characters / stray spaces and repairs accidental double-@ prefixes
+export function normalizeEmail(email: string): string {
+  let raw = (email || '')
+    .replace(/[\u200B-\u200D\uFEFF\u00A0]/g, '')
+    .trim()
+    .toLowerCase();
+
+  // If an old auto-fill prepended e.g. "2@plmun.edu.ph" before the user's real email, keep the user's real email
+  const plmunPrefixMatch = raw.match(/^[a-z0-9._-]+@(plmun|plumn)\.edu(\.ph)?([a-z0-9._%+-]+@.+)$/i);
+  if (plmunPrefixMatch && plmunPrefixMatch[3]) {
+    raw = plmunPrefixMatch[3];
+  }
+
+  // Convert any accidental spaces inside the local part (before @) into dots and strip spaces after @
+  if (raw.includes('@')) {
+    const atIndex = raw.lastIndexOf('@');
+    const localPart = raw
+      .slice(0, atIndex)
+      .trim()
+      .replace(/\s+/g, '.')
+      .replace(/\.+/g, '.');
+    const domainPart = raw
+      .slice(atIndex + 1)
+      .replace(/\s+/g, '')
+      .replace(/\.+$/, '');
+    raw = `${localPart}@${domainPart}`;
+  } else {
+    raw = raw.replace(/\s+/g, '');
+  }
+
+  return raw;
+}
 
 export function isValidPlmunEmail(email: string): boolean {
-  return PLMUN_EMAIL_REGEX.test(email.trim());
+  const cleaned = normalizeEmail(email);
+  return PLMUN_EMAIL_REGEX.test(cleaned);
 }
 
 interface AuthContextType {
@@ -32,7 +68,7 @@ interface AuthContextType {
     yearLevel?: string;
     courseOrProgram?: string;
     contactNumber: string;
-  }) => { success: boolean; error?: string; commuter?: CommuterUser };
+  }, options?: { autoLogin?: boolean }) => { success: boolean; error?: string; commuter?: CommuterUser };
   logoutCommuter: () => void;
   updateCommuterProfile: (updates: Partial<CommuterUser>) => void;
   deleteCommuter: (commuterId: string) => void;
@@ -49,6 +85,7 @@ interface AuthContextType {
   updateDriver: (driverId: string, updates: Partial<Driver>) => void;
   deleteDriver: (driverId: string) => { success: boolean; error?: string };
   resetDriverPassword: (driverId: string, newPassword: string) => { success: boolean; error?: string };
+  refreshCommuters: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -159,6 +196,72 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, [commuters]);
 
+  const authChannelRef = useRef<BroadcastChannel | null>(null);
+
+  const refreshCommuters = useCallback(() => {
+    try {
+      const savedCommuters = localStorage.getItem(COMMUTERS_STORAGE_KEY);
+      if (savedCommuters) {
+        const parsed = JSON.parse(savedCommuters);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setCommuters(parsed);
+        }
+      }
+      const savedDrivers = localStorage.getItem(DRIVERS_STORAGE_KEY);
+      if (savedDrivers) {
+        const parsedD = JSON.parse(savedDrivers);
+        if (Array.isArray(parsedD) && parsedD.length > 0) {
+          setDrivers(parsedD);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to refresh accounts from storage:', err);
+    }
+  }, []);
+
+  // Cross-tab & focus sync via BroadcastChannel + StorageEvent + Window Focus
+  useEffect(() => {
+    try {
+      const channel = new BroadcastChannel('jeeptrack_auth_sync');
+      authChannelRef.current = channel;
+      channel.onmessage = (event) => {
+        const { type, payload } = event.data || {};
+        if (type === 'SYNC_COMMUTERS' && Array.isArray(payload)) {
+          setCommuters(payload);
+        } else if (type === 'SYNC_DRIVERS' && Array.isArray(payload)) {
+          setDrivers(payload);
+        }
+      };
+    } catch (e) {}
+
+    const handleStorage = (e: StorageEvent) => {
+      if (!e.newValue) return;
+      try {
+        if (e.key === COMMUTERS_STORAGE_KEY) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setCommuters(parsed);
+        } else if (e.key === DRIVERS_STORAGE_KEY) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) setDrivers(parsed);
+        }
+      } catch (err) {
+        console.error('Failed to sync accounts across tabs:', err);
+      }
+    };
+
+    const handleFocus = () => {
+      refreshCommuters();
+    };
+
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener('focus', handleFocus);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('focus', handleFocus);
+      authChannelRef.current?.close();
+    };
+  }, [refreshCommuters]);
+
   // Keep currentCommuter in sync if commuter was updated
   useEffect(() => {
     if (currentCommuter) {
@@ -224,10 +327,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updatedDriver: Driver = {
       ...driver,
+      status: 'on_duty',
       lastLoginAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) + ' Today',
     };
 
-    setDrivers((prev) => prev.map((d) => (d.id === driver.id ? updatedDriver : d)));
+    const nextDrivers = drivers.map((d) => (d.id === driver.id ? updatedDriver : d));
+    setDrivers(nextDrivers);
+    try {
+      localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(nextDrivers));
+      authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: nextDrivers });
+    } catch (e) {}
     setCurrentDriver(updatedDriver);
     localStorage.setItem(DRIVER_SESSION_KEY, JSON.stringify(updatedDriver));
     return { success: true };
@@ -286,20 +395,37 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastLoginAt: 'Never logged in yet',
     };
 
-    setDrivers((prev) => [newDriver, ...prev]);
+    const nextDrivers = [newDriver, ...drivers];
+    setDrivers(nextDrivers);
+    try {
+      localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(nextDrivers));
+      authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: nextDrivers });
+    } catch (e) {}
     return { success: true, driver: newDriver };
   };
 
   // Update Driver Profile
   const updateDriver = (driverId: string, updates: Partial<Driver>) => {
-    setDrivers((prev) =>
-      prev.map((d) => (d.id === driverId ? { ...d, ...updates } : d))
-    );
+    setDrivers((prev) => {
+      const next = prev.map((d) => (d.id === driverId ? { ...d, ...updates } : d));
+      try {
+        localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(next));
+        authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: next });
+      } catch (e) {}
+      return next;
+    });
   };
 
   // Delete Driver Account
   const deleteDriver = (driverId: string) => {
-    setDrivers((prev) => prev.filter((d) => d.id !== driverId));
+    setDrivers((prev) => {
+      const next = prev.filter((d) => d.id !== driverId);
+      try {
+        localStorage.setItem(DRIVERS_STORAGE_KEY, JSON.stringify(next));
+        authChannelRef.current?.postMessage({ type: 'SYNC_DRIVERS', payload: next });
+      } catch (e) {}
+      return next;
+    });
     if (currentDriver && currentDriver.id === driverId) {
       logoutDriver();
     }
@@ -319,16 +445,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Commuter (Student / Faculty / Employee) Login
   const loginCommuter = (idOrEmail: string, password: string) => {
-    const trimmedInput = idOrEmail.trim().toLowerCase();
+    const trimmedInput = normalizeEmail(idOrEmail);
     const trimmedPass = password.trim();
 
     if (!trimmedInput || !trimmedPass) {
       return { success: false, error: 'Please enter your PLMun ID or Email and password.' };
     }
 
-    const found = commuters.find((c) => {
+    let latestCommuters: CommuterUser[] = commuters;
+    try {
+      const saved = localStorage.getItem(COMMUTERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) latestCommuters = parsed;
+      }
+    } catch (e) {}
+
+    const found = latestCommuters.find((c) => {
       const matchesId = c.idNumber.trim().toLowerCase() === trimmedInput;
-      const matchesEmail = c.email.trim().toLowerCase() === trimmedInput;
+      const matchesEmail = normalizeEmail(c.email) === trimmedInput;
       return (matchesId || matchesEmail) && c.password === trimmedPass;
     });
 
@@ -361,11 +496,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     yearLevel?: string;
     courseOrProgram?: string;
     contactNumber: string;
-  }) => {
+  }, options?: { autoLogin?: boolean }) => {
+    const autoLogin = options?.autoLogin !== false;
     const cleanName = data.fullName.trim();
     const cleanId = data.idNumber.trim().toUpperCase();
-    const cleanEmail = data.email.trim().toLowerCase();
+    const cleanEmail = normalizeEmail(data.email);
     const cleanPass = data.password.trim();
+
+    // Always validate against the freshest saved list (another tab may have added accounts)
+    let latestCommuters: CommuterUser[] = commuters;
+    try {
+      const saved = localStorage.getItem(COMMUTERS_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) latestCommuters = parsed;
+      }
+    } catch (e) {}
 
     if (!cleanName) {
       return { success: false, error: 'Full name is required.' };
@@ -387,13 +533,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check duplicate ID number
-    const duplicateId = commuters.find((c) => c.idNumber.trim().toUpperCase() === cleanId);
+    const duplicateId = latestCommuters.find((c) => c.idNumber.trim().toUpperCase() === cleanId);
     if (duplicateId) {
       return { success: false, error: `An account with ID number "${data.idNumber}" already exists.` };
     }
 
     // Check duplicate email
-    const duplicateEmail = commuters.find((c) => c.email.trim().toLowerCase() === cleanEmail);
+    const duplicateEmail = latestCommuters.find((c) => normalizeEmail(c.email) === cleanEmail);
     if (duplicateEmail) {
       return { success: false, error: `An account with email "${data.email}" is already registered.` };
     }
@@ -416,9 +562,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastLoginAt: 'Just now',
     };
 
-    setCommuters((prev) => [newCommuter, ...prev]);
-    setCurrentCommuter(newCommuter);
-    localStorage.setItem(COMMUTER_SESSION_KEY, JSON.stringify(newCommuter));
+    const nextCommuters = [newCommuter, ...latestCommuters];
+    setCommuters(nextCommuters);
+    // Persist & broadcast immediately so the Admin portal receives it right away
+    try {
+      localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(nextCommuters));
+      authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: nextCommuters });
+    } catch (e) {}
+
+    // Admin-created accounts must NOT log the admin in as that commuter
+    if (autoLogin) {
+      setCurrentCommuter(newCommuter);
+      localStorage.setItem(COMMUTER_SESSION_KEY, JSON.stringify(newCommuter));
+    }
     return { success: true, commuter: newCommuter };
   };
 
@@ -433,13 +589,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentCommuter) return;
     const updated = { ...currentCommuter, ...updates };
     setCurrentCommuter(updated);
-    setCommuters((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setCommuters((prev) => {
+      const next = prev.map((c) => (c.id === updated.id ? updated : c));
+      try {
+        localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(next));
+        authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: next });
+      } catch (e) {}
+      return next;
+    });
     localStorage.setItem(COMMUTER_SESSION_KEY, JSON.stringify(updated));
   };
 
   // Delete Commuter Account
   const deleteCommuter = (commuterId: string) => {
-    setCommuters((prev) => prev.filter((c) => c.id !== commuterId));
+    setCommuters((prev) => {
+      const next = prev.filter((c) => c.id !== commuterId);
+      try {
+        localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(next));
+        authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: next });
+      } catch (e) {}
+      return next;
+    });
     if (currentCommuter && currentCommuter.id === commuterId) {
       logoutCommuter();
     }
@@ -447,11 +617,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Toggle Commuter Discount Status
   const toggleCommuterDiscount = (commuterId: string) => {
-    setCommuters((prev) =>
-      prev.map((c) =>
+    setCommuters((prev) => {
+      const next = prev.map((c) =>
         c.id === commuterId ? { ...c, transitDiscountEligible: !c.transitDiscountEligible } : c
-      )
-    );
+      );
+      try {
+        localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(next));
+        authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: next });
+      } catch (e) {}
+      return next;
+    });
   };
 
   return (
@@ -479,6 +654,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateDriver,
         deleteDriver,
         resetDriverPassword,
+        refreshCommuters,
       }}
     >
       {children}
