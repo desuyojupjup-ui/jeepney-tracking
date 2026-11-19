@@ -117,6 +117,7 @@ function AppContent() {
       if (driverJeepney && !hasActiveTrip) {
         updateJeepney(driverJeepney.id, {
           status: 'offline',
+          driverShiftStatus: 'off_duty',
           speedKmh: 0,
           currentPassengers: 0,
           etaMinutes: 0,
@@ -150,6 +151,7 @@ function AppContent() {
       if (driverJeepney && !hasActiveTrip) {
         updateJeepney(driverJeepney.id, {
           status: 'offline',
+          driverShiftStatus: 'off_duty',
           speedKmh: 0,
           currentPassengers: 0,
           etaMinutes: 0,
@@ -250,12 +252,14 @@ function AppContent() {
       if (matchedJeepney) {
         const needsOnline = matchedJeepney.status === 'offline';
         const needsDriverLink =
+          matchedJeepney.driverShiftStatus !== 'on_duty' ||
           matchedJeepney.driverName !== currentDriver.fullName ||
           matchedJeepney.assignedDriverId !== currentDriver.id;
 
         if (needsOnline || needsDriverLink) {
           updateJeepney(matchedJeepney.id, {
             status: needsOnline ? 'at_terminal' : matchedJeepney.status,
+            driverShiftStatus: 'on_duty',
             driverName: currentDriver.fullName,
             assignedDriverId: currentDriver.id,
             lastGpsUpdate: needsOnline ? 'Just now' : matchedJeepney.lastGpsUpdate,

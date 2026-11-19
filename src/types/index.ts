@@ -77,6 +77,7 @@ export interface Jeepney {
   capacity: number;
   currentPassengers: number;
   status: JeepneyStatus;
+  driverShiftStatus?: 'on_duty' | 'on_break' | 'off_duty';
   assignedDriverId?: string;
   driverName?: string;
   currentLat: number;

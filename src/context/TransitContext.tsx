@@ -511,7 +511,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       pendingPushRef.current[u.id] = u;
     });
     if (!pushTimerRef.current) {
-      pushTimerRef.current = setTimeout(flushPush, 400);
+      pushTimerRef.current = setTimeout(flushPush, 250);
     }
   }, [flushPush]);
 
@@ -543,9 +543,15 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           }
           if (!remote) {
             // Unknown to the relay => no live driver is broadcasting it
-            if (local.status !== 'offline' && !pendingPushRef.current[local.id]) {
+            if ((local.status !== 'offline' || local.driverShiftStatus === 'on_break') && !pendingPushRef.current[local.id]) {
               changed = true;
-              const offlineUnit: Jeepney = { ...local, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' };
+              const offlineUnit: Jeepney = {
+                ...local,
+                status: 'offline',
+                driverShiftStatus: 'off_duty',
+                speedKmh: 0,
+                lastGpsUpdate: 'Offline',
+              };
               lastSyncedJsonRef.current[local.id] = JSON.stringify(offlineUnit);
               return offlineUnit;
             }
@@ -556,11 +562,17 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           const isNewRemote = remote.updatedAt > (lastRemoteTsRef.current[local.id] || 0);
           const hasPendingLocal = Boolean(pendingPushRef.current[local.id]);
           if (hasPendingLocal) return local;
-          if (!isNewRemote && !(isStale && local.status !== 'offline')) return local;
+          if (!isNewRemote && !(isStale && (local.status !== 'offline' || local.driverShiftStatus === 'on_break'))) return local;
 
           let incoming: Jeepney = remote.unit;
-          if (isStale && incoming.status !== 'offline') {
-            incoming = { ...incoming, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' };
+          if (isStale && (incoming.status !== 'offline' || incoming.driverShiftStatus === 'on_break')) {
+            incoming = {
+              ...incoming,
+              status: 'offline',
+              driverShiftStatus: 'off_duty',
+              speedKmh: 0,
+              lastGpsUpdate: 'Offline',
+            };
           }
           const incomingJson = JSON.stringify(incoming);
           lastRemoteTsRef.current[local.id] = remote.updatedAt;
@@ -577,8 +589,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         Object.values(remoteById).forEach(({ unit, updatedAt }) => {
           if (!current.some((j) => j.id === unit.id)) {
             const isStale = serverTime - updatedAt > LIVE_STALE_MS;
-            const incoming: Jeepney = isStale && unit.status !== 'offline'
-              ? { ...unit, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' }
+            const incoming: Jeepney = isStale && (unit.status !== 'offline' || unit.driverShiftStatus === 'on_break')
+              ? { ...unit, status: 'offline', driverShiftStatus: 'off_duty', speedKmh: 0, lastGpsUpdate: 'Offline' }
               : unit;
             lastSyncedJsonRef.current[unit.id] = JSON.stringify(incoming);
             lastRemoteTsRef.current[unit.id] = updatedAt;
@@ -813,6 +825,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...j,
           status: 'en_route' as const,
+          driverShiftStatus: 'on_duty' as const,
           direction: direction,
           driverName: options?.driverName || j.driverName,
           assignedDriverId: options?.assignedDriverId || j.assignedDriverId,
@@ -880,6 +893,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         return {
           ...j,
           status: 'at_terminal' as const,
+          driverShiftStatus: 'on_duty' as const,
           speedKmh: 0,
           currentLat: latToUse,
           currentLng: lngToUse,

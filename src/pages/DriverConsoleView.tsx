@@ -94,9 +94,19 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     const nextStatus = activeDutyStatus === 'on_duty' ? 'on_break' : 'on_duty';
     updateDriver(currentDriver.id, { status: nextStatus });
     if (nextStatus === 'on_break') {
-      updateJeepney(activeJeepney.id, { status: 'offline', speedKmh: 0, lastGpsUpdate: 'On Break' });
+      updateJeepney(activeJeepney.id, {
+        status: 'offline',
+        driverShiftStatus: 'on_break',
+        speedKmh: 0,
+        lastGpsUpdate: 'On Break',
+      });
     } else {
-      updateJeepney(activeJeepney.id, { status: 'at_terminal', speedKmh: 0, lastGpsUpdate: 'Just now' });
+      updateJeepney(activeJeepney.id, {
+        status: 'at_terminal',
+        driverShiftStatus: 'on_duty',
+        speedKmh: 0,
+        lastGpsUpdate: 'Just now',
+      });
     }
   };
 
@@ -110,7 +120,9 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       if (!isTripActive) {
         updateJeepney(activeJeepney.id, {
           status: 'offline',
+          driverShiftStatus: 'off_duty',
           speedKmh: 0,
+          currentPassengers: 0,
           etaMinutes: 0,
           distanceRemainingKm: 0,
           lastGpsUpdate: 'Offline',
@@ -129,18 +141,20 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     if (
       activeDutyStatus !== 'on_break' &&
       (activeJeepney.status === 'offline' ||
+        activeJeepney.driverShiftStatus !== 'on_duty' ||
         activeJeepney.driverName !== activeDriverName ||
         (currentDriver?.id && activeJeepney.assignedDriverId !== currentDriver.id))
     ) {
       updateJeepney(activeJeepney.id, {
         status: activeJeepney.status === 'offline' ? 'at_terminal' : activeJeepney.status,
+        driverShiftStatus: 'on_duty',
         driverName: activeDriverName,
         assignedDriverId: currentDriver?.id,
         direction: direction,
         lastGpsUpdate: 'Just now',
       });
     }
-  }, [activeJeepney.id, activeJeepney.status, activeJeepney.driverName, activeJeepney.assignedDriverId, activeDriverName, activeDutyStatus, currentDriver, direction, updateDriver, updateJeepney]);
+  }, [activeJeepney.id, activeJeepney.status, activeJeepney.driverShiftStatus, activeJeepney.driverName, activeJeepney.assignedDriverId, activeDriverName, activeDutyStatus, currentDriver, direction, updateDriver, updateJeepney]);
 
   // Passenger Count Actions
   const handlePassengerChange = (delta: number) => {

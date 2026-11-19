@@ -123,7 +123,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     setRevealedPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Enrich drivers with live jeepney status so any driver with an active/online jeepney is shown On Duty
+  // Enrich drivers with live jeepney telemetry so shift status (Online / On Break / Offline) updates automatically across browsers & devices
   const enrichedDrivers = useMemo(() => {
     return drivers.map((d) => {
       const assignedJeep = jeepneys.find(
@@ -132,11 +132,22 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
           j.assignedDriverId === d.id ||
           (j.driverName && j.driverName.toLowerCase() === d.fullName.toLowerCase())
       );
-      const isJeepneyOnline = assignedJeep && (assignedJeep.status === 'en_route' || assignedJeep.status === 'at_terminal');
+
+      let liveStatus: Driver['status'] = d.status;
+      if (assignedJeep && d.accountStatus !== 'suspended') {
+        if (assignedJeep.status === 'en_route' || assignedJeep.status === 'at_terminal') {
+          liveStatus = 'on_duty';
+        } else if (assignedJeep.driverShiftStatus === 'on_break' || assignedJeep.lastGpsUpdate === 'On Break') {
+          liveStatus = 'on_break';
+        } else if (assignedJeep.status === 'offline' || assignedJeep.driverShiftStatus === 'off_duty') {
+          liveStatus = 'off_duty';
+        }
+      }
+
       return {
         ...d,
         assignedJeepneyId: d.assignedJeepneyId || assignedJeep?.id,
-        status: isJeepneyOnline && d.accountStatus !== 'suspended' ? ('on_duty' as const) : d.status,
+        status: liveStatus,
       };
     });
   }, [drivers, jeepneys]);
@@ -176,7 +187,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
   const totalJeeps = jeepneys.length;
   const enRouteJeeps = jeepneys.filter(j => j.status === 'en_route').length;
   const terminalJeeps = jeepneys.filter(j => j.status === 'at_terminal').length;
-  const standbyJeeps = jeepneys.filter(j => j.status === 'idle').length;
+  const standbyJeeps = jeepneys.filter(j => j.status === 'idle' || j.status === 'offline').length;
 
   // Pagination Calculations
   const currentTotal = activeTab === 'drivers' ? filteredDrivers.length : filteredJeepneys.length;
@@ -468,15 +479,15 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
             </div>
           </div>
 
-          {/* Card 2: On Duty */}
+          {/* Card 2: Online / On Duty */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 flex items-center justify-center text-emerald-600 dark:text-emerald-400 shrink-0">
                 <Activity className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">On Duty</span>
-                <span className="text-[11px] text-emerald-500 font-medium">Active behind wheel</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Online</span>
+                <span className="text-[11px] text-emerald-500 font-medium">On duty behind wheel</span>
               </div>
             </div>
             <div className="text-2xl font-black font-mono text-emerald-600 dark:text-emerald-400">
@@ -500,15 +511,15 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
             </div>
           </div>
 
-          {/* Card 4: Off Duty */}
+          {/* Card 4: Offline / Off Duty */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-xs flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-500 shrink-0">
                 <Ban className="w-4 h-4" />
               </div>
               <div>
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Off Duty</span>
-                <span className="text-[11px] text-slate-400">Inactive or suspended</span>
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Offline</span>
+                <span className="text-[11px] text-slate-400">Off duty or suspended</span>
               </div>
             </div>
             <div className="text-2xl font-black font-mono text-slate-600 dark:text-slate-400">
@@ -701,15 +712,16 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
               <option value="all">All Statuses</option>
               {activeTab === 'drivers' ? (
                 <>
-                  <option value="on_duty">On Duty</option>
+                  <option value="on_duty">Online</option>
                   <option value="on_break">On Break</option>
-                  <option value="off_duty">Off Duty</option>
+                  <option value="off_duty">Offline</option>
                   <option value="suspended">Suspended</option>
                 </>
               ) : (
                 <>
                   <option value="en_route">In Transit</option>
                   <option value="at_terminal">At Terminal</option>
+                  <option value="offline">Offline</option>
                   <option value="idle">Standby / Idle</option>
                 </>
               )}
@@ -783,10 +795,17 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                         </td>
                         <td className="py-3 px-3">
                           {assignedJeep ? (
-                            <span className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 font-mono">
-                              <Bus className="w-3 h-3 text-emerald-600" />
-                              {assignedJeep.jeepneyCode} ({assignedJeep.plateNumber})
-                            </span>
+                            <div>
+                              <span className="inline-flex items-center gap-1 font-bold text-emerald-700 dark:text-emerald-400 font-mono">
+                                <Bus className="w-3 h-3 text-emerald-600" />
+                                {assignedJeep.jeepneyCode} ({assignedJeep.plateNumber})
+                              </span>
+                              {driver.status === 'on_duty' && (
+                                <div className="text-[10px] font-mono text-slate-500 dark:text-slate-400 mt-0.5">
+                                  Load: <span className="font-bold text-slate-700 dark:text-slate-200">{assignedJeep.currentPassengers || 0}/{assignedJeep.capacity}</span> pax
+                                </div>
+                              )}
+                            </div>
                           ) : (
                             <span className="text-slate-400 italic">Standby / Unassigned</span>
                           )}
@@ -817,19 +836,19 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                               Suspended
                             </span>
                           ) : driver.status === 'on_duty' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-900">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                              On Duty
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-900">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                              Online
                             </span>
                           ) : driver.status === 'on_break' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-900">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-900">
                               <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
                               On Break
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
-                              Off Duty
+                              Offline
                             </span>
                           )}
                         </td>
@@ -954,22 +973,68 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                           )}
                         </td>
                         <td className="py-3 px-3 font-mono">
-                          <span className="font-bold text-slate-800 dark:text-slate-200">{puj.currentPassengers || 0}</span>
-                          <span className="text-slate-400">/{puj.capacity} seats</span>
+                          {(() => {
+                            const pax = puj.currentPassengers || 0;
+                            const cap = Math.max(1, puj.capacity || 22);
+                            const pct = Math.min(100, Math.round((pax / cap) * 100));
+                            const isFull = pax >= cap;
+                            const isHigh = pct >= 75;
+                            return (
+                              <div className="w-36 space-y-1">
+                                <div className="flex items-center justify-between text-[11px]">
+                                  <span>
+                                    <span className={`font-black ${isFull ? 'text-rose-600 dark:text-rose-400' : pax > 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200'}`}>
+                                      {pax}
+                                    </span>
+                                    <span className="text-slate-400">/{cap} seats</span>
+                                  </span>
+                                  <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded ${
+                                    isFull
+                                      ? 'bg-rose-100 text-rose-700 dark:bg-rose-950/70 dark:text-rose-300'
+                                      : isHigh
+                                      ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/70 dark:text-amber-300'
+                                      : pax > 0
+                                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300'
+                                      : 'bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
+                                  }`}>
+                                    {isFull ? 'FULL' : `${pct}%`}
+                                  </span>
+                                </div>
+                                <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                                  <div
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      isFull ? 'bg-rose-500' : isHigh ? 'bg-amber-500' : 'bg-emerald-500'
+                                    }`}
+                                    style={{ width: `${pct}%` }}
+                                  />
+                                </div>
+                              </div>
+                            );
+                          })()}
                         </td>
                         <td className="py-3 px-3">
                           {puj.status === 'en_route' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-900">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-400 dark:border-emerald-900">
+                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                               In Transit
                             </span>
                           ) : puj.status === 'at_terminal' ? (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-900">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/60 dark:text-blue-400 dark:border-blue-900">
                               <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                               At Terminal
                             </span>
+                          ) : puj.driverShiftStatus === 'on_break' || puj.lastGpsUpdate === 'On Break' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/60 dark:text-amber-400 dark:border-amber-900">
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                              On Break
+                            </span>
+                          ) : puj.status === 'offline' ? (
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                              <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                              Offline
+                            </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700">
                               <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
                               Standby
                             </span>
