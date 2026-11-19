@@ -351,42 +351,30 @@ export const CommuterAuthView: React.FC<CommuterAuthViewProps> = ({
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Account Type
               </label>
-              <div className="grid grid-cols-3 gap-1.5">
+              <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setRegCommuterType('student')}
-                  className={`py-1.5 px-2 rounded-[7px] text-xs font-semibold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                  className={`py-2 px-3 rounded-[7px] text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                     regCommuterType === 'student'
                       ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs'
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  <GraduationCap className="w-3.5 h-3.5" />
+                  <GraduationCap className="w-4 h-4" />
                   <span>Student</span>
                 </button>
                 <button
                   type="button"
                   onClick={() => setRegCommuterType('faculty')}
-                  className={`py-1.5 px-2 rounded-[7px] text-xs font-semibold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
+                  className={`py-2 px-3 rounded-[7px] text-xs font-semibold flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
                     regCommuterType === 'faculty'
                       ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs'
                       : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
                   }`}
                 >
-                  <Briefcase className="w-3.5 h-3.5" />
+                  <Briefcase className="w-4 h-4" />
                   <span>Faculty</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setRegCommuterType('employee')}
-                  className={`py-1.5 px-2 rounded-[7px] text-xs font-semibold flex items-center justify-center gap-1 border transition-all cursor-pointer ${
-                    regCommuterType === 'employee'
-                      ? 'bg-black text-white border-black dark:bg-white dark:text-black dark:border-white shadow-xs'
-                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  <Building className="w-3.5 h-3.5" />
-                  <span>Staff</span>
                 </button>
               </div>
             </div>
@@ -409,7 +397,7 @@ export const CommuterAuthView: React.FC<CommuterAuthViewProps> = ({
             {/* ID Number */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                {regCommuterType === 'student' ? 'Student ID Number' : 'Employee ID'}
+                {regCommuterType === 'student' ? 'Student ID Number' : 'Faculty ID Number'}
               </label>
               <input
                 type="text"

@@ -4,7 +4,6 @@ import {
   X, 
   GraduationCap, 
   Briefcase, 
-  Building, 
   ShieldCheck, 
   QrCode, 
   CheckCircle2, 
@@ -106,13 +105,9 @@ export const CommuterProfileModal: React.FC<CommuterProfileModalProps> = ({
                 <div className="p-2 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300">
                   <GraduationCap className="w-5 h-5" />
                 </div>
-              ) : isFaculty ? (
+              ) : (
                 <div className="p-2 rounded-xl bg-indigo-100 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300">
                   <Briefcase className="w-5 h-5" />
-                </div>
-              ) : (
-                <div className="p-2 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-300">
-                  <Building className="w-5 h-5" />
                 </div>
               )}
               <div>

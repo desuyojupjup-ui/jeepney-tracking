@@ -63,7 +63,7 @@ interface AuthContextType {
     idNumber: string;
     email: string;
     password: string;
-    commuterType: 'student' | 'faculty' | 'employee';
+    commuterType: 'student' | 'faculty';
     collegeOrDepartment: string;
     yearLevel?: string;
     courseOrProgram?: string;
@@ -98,14 +98,15 @@ const COMMUTER_SESSION_KEY = 'jeeptrack_commuter_session';
 const COMMUTERS_STORAGE_KEY = 'jeeptrack_registered_commuters_v1';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Load persisted commuters or fallback to initial mock commuters
+  // Load persisted commuters or fallback to initial mock commuters (Student & Faculty only)
   const [commuters, setCommuters] = useState<CommuterUser[]>(() => {
     try {
       const saved = localStorage.getItem(COMMUTERS_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          const filtered = parsed.filter((c: any) => c.commuterType !== 'employee');
+          return filtered.length > 0 ? filtered : MOCK_COMMUTERS;
         }
       }
     } catch (e) {
@@ -205,7 +206,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedCommuters) {
         const parsed = JSON.parse(savedCommuters);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          setCommuters(parsed);
+          const valid = parsed.filter((c: any) => c.commuterType !== 'employee');
+          setCommuters(valid);
         }
       }
       const savedDrivers = localStorage.getItem(DRIVERS_STORAGE_KEY);
@@ -614,7 +616,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     idNumber: string;
     email: string;
     password: string;
-    commuterType: 'student' | 'faculty' | 'employee';
+    commuterType: 'student' | 'faculty';
     collegeOrDepartment: string;
     yearLevel?: string;
     courseOrProgram?: string;

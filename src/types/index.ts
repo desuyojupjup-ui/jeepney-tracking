@@ -10,12 +10,12 @@ export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export type AlertType = 'ROUTE_DEVIATION' | 'IDLE_TIMEOUT' | 'SPEED_WARNING' | 'EMERGENCY_SOS' | 'GEOFENCE_BREACH';
 
-export type CommuterType = 'student' | 'faculty' | 'employee';
+export type CommuterType = 'student' | 'faculty';
 
 export interface CommuterUser {
   id: string;
   fullName: string;
-  idNumber: string; // e.g. "2022-04921", "FAC-2019-042", "EMP-2016-108"
+  idNumber: string; // e.g. "2022-04921", "FAC-2019-042"
   email: string;
   commuterType: CommuterType;
   collegeOrDepartment: string;

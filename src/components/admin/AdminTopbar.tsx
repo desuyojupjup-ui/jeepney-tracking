@@ -106,7 +106,7 @@ export const AdminTopbar: React.FC<AdminTopbarProps> = ({
     },
     users: {
       category: 'Commuter Management',
-      title: 'PLMun Registered Users (Students, Instructors, Staff)',
+      title: 'PLMun Registered Users (Students, Faculty)',
       subtitle: 'Directory of verified institutional transit accounts, IDs, and discount verifications'
     },
     fare: {

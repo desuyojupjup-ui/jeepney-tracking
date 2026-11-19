@@ -506,7 +506,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
                   Students & Faculty
                 </h3>
                 <p className="text-xs text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
-                  Sign in with your PLMun student/employee credentials to track approaching PUJs, enjoy automated 20% student fare calculations, and receive proximity stop notifications.
+                  Sign in with your PLMun student or faculty credentials to track approaching PUJs, enjoy automated 20% student fare calculations, and receive proximity stop notifications.
                 </p>
               </div>
 

@@ -269,7 +269,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               )}
             </button>
 
-            {/* 5. Registered Commuters Tab (Students, Faculty, Staff) */}
+            {/* 5. Registered Commuters Tab (Students & Faculty) */}
             <button
               onClick={() => handleSelectTab('users')}
               title={isCollapsed ? `PLMun Commuters (${commuters.length})` : undefined}

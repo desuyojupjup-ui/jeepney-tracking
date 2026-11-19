@@ -6,7 +6,6 @@ import {
   Users, 
   GraduationCap, 
   Briefcase, 
-  Building2, 
   Search, 
   Filter, 
   ShieldCheck, 
@@ -50,7 +49,7 @@ export const RegisteredUsersView: React.FC = () => {
     refreshCommuters();
   }, [refreshCommuters]);
 
-  const [activeTab, setActiveTab] = useState<'all' | 'student' | 'faculty' | 'employee'>('all');
+  const [activeTab, setActiveTab] = useState<'all' | 'student' | 'faculty'>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedUser, setSelectedUser] = useState<CommuterUser | null>(null);
 
@@ -216,10 +215,9 @@ export const RegisteredUsersView: React.FC = () => {
     const total = commuters.length;
     const students = commuters.filter((c) => c.commuterType === 'student').length;
     const faculty = commuters.filter((c) => c.commuterType === 'faculty').length;
-    const employees = commuters.filter((c) => c.commuterType === 'employee').length;
     const discounted = commuters.filter((c) => c.transitDiscountEligible).length;
 
-    return { total, students, faculty, employees, discounted };
+    return { total, students, faculty, discounted };
   }, [commuters]);
 
   const handleDelete = (id: string, name: string) => {
@@ -295,7 +293,7 @@ export const RegisteredUsersView: React.FC = () => {
       {/* =========================================================================
           1. KPI CARDS (Matching Reference Layout Style)
           ========================================================================= */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
         
         {/* Card 1: Total Commuters */}
         <div 
@@ -363,29 +361,6 @@ export const RegisteredUsersView: React.FC = () => {
           </div>
           <div className="text-2xl font-black font-mono text-slate-900 dark:text-white">
             {stats.faculty.toLocaleString()}
-          </div>
-        </div>
-
-        {/* Card 4: Staff */}
-        <div 
-          onClick={() => setActiveTab('employee')}
-          className={`bg-white dark:bg-slate-900 border rounded-xl p-4 shadow-xs flex items-center justify-between transition-all cursor-pointer hover:border-indigo-400 ${
-            activeTab === 'employee'
-              ? 'border-indigo-500 ring-2 ring-indigo-500/20'
-              : 'border-slate-200 dark:border-slate-800'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-              <Building2 className="w-4 h-4" />
-            </div>
-            <div>
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 block">Staff</span>
-              <span className="text-[11px] text-slate-400">Campus Administration</span>
-            </div>
-          </div>
-          <div className="text-2xl font-black font-mono text-slate-900 dark:text-white">
-            {stats.employees.toLocaleString()}
           </div>
         </div>
 
@@ -493,7 +468,6 @@ export const RegisteredUsersView: React.FC = () => {
                 <option value="all" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">All Roles ({stats.total})</option>
                 <option value="student" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">Students ({stats.students})</option>
                 <option value="faculty" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">Faculty ({stats.faculty})</option>
-                <option value="employee" className="bg-white text-slate-900 dark:bg-slate-900 dark:text-white">Staff ({stats.employees})</option>
               </select>
             </div>
           </div>
@@ -535,7 +509,6 @@ export const RegisteredUsersView: React.FC = () => {
                   const isSelected = selectedIds.includes(user.id);
                   const isStudent = user.commuterType === 'student';
                   const isFaculty = user.commuterType === 'faculty';
-                  const isEmployee = user.commuterType === 'employee';
 
                   return (
                     <tr 
@@ -560,9 +533,7 @@ export const RegisteredUsersView: React.FC = () => {
                           <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs text-white shrink-0 ${
                             isStudent
                               ? 'bg-gradient-to-br from-emerald-600 to-teal-700'
-                              : isFaculty
-                              ? 'bg-gradient-to-br from-blue-600 to-indigo-700'
-                              : 'bg-gradient-to-br from-purple-600 to-pink-700'
+                              : 'bg-gradient-to-br from-blue-600 to-indigo-700'
                           }`}>
                             {user.fullName.charAt(0)}
                           </div>
@@ -656,12 +627,6 @@ export const RegisteredUsersView: React.FC = () => {
                           <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
                             <span>Faculty</span>
-                          </span>
-                        )}
-                        {isEmployee && (
-                          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 dark:bg-purple-950/60 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
-                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
-                            <span>Staff</span>
                           </span>
                         )}
                       </td>
@@ -976,7 +941,7 @@ export const RegisteredUsersView: React.FC = () => {
                 <span className="font-bold text-slate-900 dark:text-white">{issuedCommuterSlip.fullName}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
-                <span className="text-slate-400 font-bold">STUDENT/EMP ID:</span>
+                <span className="text-slate-400 font-bold">STUDENT/FACULTY ID:</span>
                 <span className="font-bold text-blue-600 dark:text-blue-400">{issuedCommuterSlip.idNumber}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
@@ -1019,7 +984,7 @@ export const RegisteredUsersView: React.FC = () => {
       )}
 
       {/* =========================================================================
-          MODAL: ADD NEW COMMUTER USER (Student / Faculty / Staff)
+          MODAL: ADD NEW COMMUTER USER (Student / Faculty)
           ========================================================================= */}
       {showAddModal && (
         <div className="fixed inset-0 z-[9000] flex items-center justify-center p-4 bg-black/60 animate-fade-in overflow-y-auto">
@@ -1052,7 +1017,7 @@ export const RegisteredUsersView: React.FC = () => {
                 <label className="font-bold text-slate-700 dark:text-slate-300 block">
                   Category (User Role):
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setFormData({ ...formData, commuterType: 'student' })}
@@ -1075,17 +1040,6 @@ export const RegisteredUsersView: React.FC = () => {
                   >
                     Faculty
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setFormData({ ...formData, commuterType: 'employee' })}
-                    className={`py-2 px-2 rounded-xl border text-center font-bold transition-all ${
-                      formData.commuterType === 'employee'
-                        ? 'bg-purple-50 dark:bg-purple-950/60 border-purple-500 text-purple-700 dark:text-purple-300 shadow-xs'
-                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400'
-                    }`}
-                  >
-                    Staff
-                  </button>
                 </div>
               </div>
 
@@ -1107,7 +1061,7 @@ export const RegisteredUsersView: React.FC = () => {
               {/* ID Number */}
               <div className="space-y-1">
                 <label className="font-bold text-slate-700 dark:text-slate-300 block">
-                  PLMun Student / Employee ID Number:
+                  PLMun Student / Faculty ID Number:
                 </label>
                 <input
                   type="text"
@@ -1182,8 +1136,6 @@ export const RegisteredUsersView: React.FC = () => {
                   <option value="College of Arts and Sciences (CAS)">College of Arts and Sciences (CAS)</option>
                   <option value="College of Criminal Justice (CCJ)">College of Criminal Justice (CCJ)</option>
                   <option value="College of Teacher Education (CTE)">College of Teacher Education (CTE)</option>
-                  <option value="General Administration / Staff Services">General Administration / Staff Services</option>
-                  <option value="Campus Facilities & Logistics Office">Campus Facilities & Logistics Office</option>
                 </select>
               </div>
 

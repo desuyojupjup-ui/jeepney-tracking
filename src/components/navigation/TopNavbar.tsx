@@ -134,7 +134,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
   const commuterUser = isCommuterAuthenticated && currentCommuter
     ? {
         name: currentCommuter.fullName,
-        roleLabel: currentCommuter.commuterType === 'student' ? 'PLMun Student' : currentCommuter.commuterType === 'faculty' ? 'PLMun Faculty' : 'PLMun Staff',
+        roleLabel: currentCommuter.commuterType === 'student' ? 'PLMun Student' : 'PLMun Faculty',
         roleType: 'commuter' as const,
         avatarChar: currentCommuter.fullName.charAt(0),
         gradient: 'from-[#006837] to-[#00B14F]',

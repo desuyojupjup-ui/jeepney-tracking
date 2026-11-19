@@ -293,7 +293,7 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
                 <div className="flex items-center justify-between px-2.5 py-1.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 text-xs">
                   <div className="flex items-center gap-2 min-w-0">
                     <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-[#006837] to-[#00B14F] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                      {currentCommuter.commuterType === 'student' ? '🎓' : currentCommuter.commuterType === 'faculty' ? '👩‍🏫' : '🏢'}
+                      {currentCommuter.commuterType === 'student' ? '🎓' : '👩‍🏫'}
                     </div>
                     <div className="min-w-0">
                       <div className="font-extrabold text-emerald-950 dark:text-emerald-200 text-xs truncate leading-tight">

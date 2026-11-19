@@ -44,7 +44,7 @@ export const SignOutConfirmModal: React.FC<SignOutConfirmModalProps> = ({
     ? `PUJ Driver • ${currentDriver.licenseNumber || 'Verified'}`
     : currentCommuter?.commuterType === 'student'
     ? `PLMun Student (${currentCommuter.idNumber})`
-    : `PLMun Community Pass (${currentCommuter?.idNumber || 'Verified'})`;
+    : `PLMun Faculty (${currentCommuter?.idNumber || 'Verified'})`;
 
   const consequenceText = currentDriver
     ? 'Signing out will terminate your current active shift, stop vehicle GPS telemetry broadcasting, and mark your PUJ unit as Off Duty.'
