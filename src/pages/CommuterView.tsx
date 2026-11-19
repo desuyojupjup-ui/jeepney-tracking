@@ -100,6 +100,22 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
 
   const selectedStop = stops.find((s) => s.id === selectedStopId) || stops[0];
 
+  // Auto-locate a driver on the map the moment they come online (from any browser/device)
+  const seenOnlineIdsRef = React.useRef<Set<string>>(new Set());
+  React.useEffect(() => {
+    const onlineIds = filteredJeepneys.map((j) => j.id);
+    const newlyOnline = onlineIds.find((id) => !seenOnlineIdsRef.current.has(id));
+    seenOnlineIdsRef.current = new Set(onlineIds);
+    const selectionStillOnline = selectedJeepneyId ? onlineIds.includes(selectedJeepneyId) : false;
+    if (selectedJeepneyId && !selectionStillOnline) {
+      setSelectedJeepneyId(null);
+    }
+    if (newlyOnline && (!selectedJeepneyId || !selectionStillOnline)) {
+      handleFocusJeepney(newlyOnline);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredJeepneys]);
+
   // Active / Highlighted jeepney (ONLY when user explicitly clicked/selected one!)
   const activeJeepney = selectedJeepneyId 
     ? (filteredJeepneys.find(j => j.id === selectedJeepneyId) || null) 

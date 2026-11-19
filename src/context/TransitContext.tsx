@@ -79,6 +79,13 @@ const STORAGE_GEOFENCE = 'jeeptrack_geofence_events_v3';
 const STORAGE_TRIPS = 'jeeptrack_completed_trips_v3';
 const STORAGE_FARE_CONFIG = 'jeeptrack_fare_config_v1';
 const STORAGE_ROUTE_STOPS = 'jeeptrack_route_stops_v2';
+const DRIVER_SESSION_KEY = 'jeeptrack_driver_session';
+
+// Shared live fleet relay (Vite dev/preview middleware or Vercel /api function)
+const LIVE_FLEET_ENDPOINT = '/api/live-fleet';
+const LIVE_PULL_INTERVAL_MS = 2000;
+const LIVE_HEARTBEAT_MS = 15000;
+const LIVE_STALE_MS = 90000;
 
 export const DEFAULT_FARE_CONFIG: FareConfig = {
   baseFareRegular: 13.00,
@@ -453,6 +460,180 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       localStorage.setItem(STORAGE_TRIPS, JSON.stringify(trips));
     } catch (e) {}
   }, [trips]);
+
+  // ---------------------------------------------------------------------------
+  // CROSS-BROWSER / CROSS-DEVICE LIVE FLEET RELAY
+  // localStorage + BroadcastChannel only sync tabs of the SAME browser.
+  // A driver on Edge/phone and a student on Chrome need a shared server relay.
+  // ---------------------------------------------------------------------------
+  const lastSyncedJsonRef = useRef<Record<string, string>>({});
+  const lastRemoteTsRef = useRef<Record<string, number>>({});
+  const relayReadyRef = useRef<boolean>(false);
+  const pendingPushRef = useRef<Record<string, Jeepney>>({});
+  const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jeepneysRef = useRef<Jeepney[]>(jeepneys);
+  jeepneysRef.current = jeepneys;
+
+  // Jeepney owned by the driver logged in on THIS browser (publishes heartbeats)
+  const getOwnedJeepneyId = (): string | null => {
+    try {
+      const raw = localStorage.getItem(DRIVER_SESSION_KEY);
+      if (!raw) return null;
+      const drv = JSON.parse(raw);
+      if (!drv) return null;
+      if (drv.assignedJeepneyId) return drv.assignedJeepneyId;
+      const match = jeepneysRef.current.find(
+        (j) =>
+          j.assignedDriverId === drv.id ||
+          (j.driverName && drv.fullName && j.driverName.toLowerCase() === String(drv.fullName).toLowerCase())
+      );
+      return match?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const flushPush = useCallback(() => {
+    pushTimerRef.current = null;
+    const units = Object.values(pendingPushRef.current);
+    pendingPushRef.current = {};
+    if (units.length === 0) return;
+    fetch(LIVE_FLEET_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ units }),
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
+
+  const queuePush = useCallback((units: Jeepney[]) => {
+    units.forEach((u) => {
+      pendingPushRef.current[u.id] = u;
+    });
+    if (!pushTimerRef.current) {
+      pushTimerRef.current = setTimeout(flushPush, 400);
+    }
+  }, [flushPush]);
+
+  // Poll the relay and merge remote updates into local state
+  useEffect(() => {
+    let cancelled = false;
+
+    const pull = async () => {
+      try {
+        const res = await fetch(LIVE_FLEET_ENDPOINT, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (cancelled || !data || !Array.isArray(data.units)) return;
+
+        const serverTime = Number(data.serverTime) || Date.now();
+        const ownedId = getOwnedJeepneyId();
+        const remoteById: Record<string, { unit: Jeepney; updatedAt: number }> = {};
+        data.units.forEach((entry: any) => {
+          if (entry?.unit?.id) remoteById[entry.unit.id] = { unit: entry.unit, updatedAt: Number(entry.updatedAt) || 0 };
+        });
+
+        const current = jeepneysRef.current;
+        let changed = false;
+        const next: Jeepney[] = current.map((local) => {
+          const remote = remoteById[local.id];
+          if (local.id === ownedId) {
+            // This browser is the source of truth for its own driver's unit
+            return local;
+          }
+          if (!remote) {
+            // Unknown to the relay => no live driver is broadcasting it
+            if (local.status !== 'offline' && !pendingPushRef.current[local.id]) {
+              changed = true;
+              const offlineUnit: Jeepney = { ...local, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' };
+              lastSyncedJsonRef.current[local.id] = JSON.stringify(offlineUnit);
+              return offlineUnit;
+            }
+            return local;
+          }
+
+          const isStale = serverTime - remote.updatedAt > LIVE_STALE_MS;
+          const isNewRemote = remote.updatedAt > (lastRemoteTsRef.current[local.id] || 0);
+          const hasPendingLocal = Boolean(pendingPushRef.current[local.id]);
+          if (hasPendingLocal) return local;
+          if (!isNewRemote && !(isStale && local.status !== 'offline')) return local;
+
+          let incoming: Jeepney = remote.unit;
+          if (isStale && incoming.status !== 'offline') {
+            incoming = { ...incoming, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' };
+          }
+          const incomingJson = JSON.stringify(incoming);
+          lastRemoteTsRef.current[local.id] = remote.updatedAt;
+          if (incomingJson !== JSON.stringify(local)) {
+            changed = true;
+            lastSyncedJsonRef.current[local.id] = incomingJson;
+            return incoming;
+          }
+          lastSyncedJsonRef.current[local.id] = incomingJson;
+          return local;
+        });
+
+        // Add units that exist on the relay but not locally (e.g. newly registered fleet)
+        Object.values(remoteById).forEach(({ unit, updatedAt }) => {
+          if (!current.some((j) => j.id === unit.id)) {
+            const isStale = serverTime - updatedAt > LIVE_STALE_MS;
+            const incoming: Jeepney = isStale && unit.status !== 'offline'
+              ? { ...unit, status: 'offline', speedKmh: 0, lastGpsUpdate: 'Offline' }
+              : unit;
+            lastSyncedJsonRef.current[unit.id] = JSON.stringify(incoming);
+            lastRemoteTsRef.current[unit.id] = updatedAt;
+            next.push(incoming);
+            changed = true;
+          }
+        });
+
+        if (!relayReadyRef.current) {
+          // Baseline: only changes made AFTER first sync get published
+          next.forEach((j) => {
+            if (j.id !== ownedId) lastSyncedJsonRef.current[j.id] = JSON.stringify(j);
+          });
+          relayReadyRef.current = true;
+        }
+
+        if (changed) {
+          setJeepneys(next);
+        }
+      } catch {
+        // Relay unavailable (static hosting) -> app keeps same-browser sync only
+      }
+    };
+
+    pull();
+    const interval = setInterval(pull, LIVE_PULL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Publish local fleet changes (driver status, GPS, passengers, admin edits)
+  useEffect(() => {
+    if (!relayReadyRef.current) return;
+    const changedUnits = jeepneys.filter((j) => lastSyncedJsonRef.current[j.id] !== JSON.stringify(j));
+    if (changedUnits.length === 0) return;
+    changedUnits.forEach((j) => {
+      lastSyncedJsonRef.current[j.id] = JSON.stringify(j);
+    });
+    queuePush(changedUnits);
+  }, [jeepneys, queuePush]);
+
+  // Driver heartbeat: keep this browser's on-duty unit marked as live
+  useEffect(() => {
+    const beat = () => {
+      const ownedId = getOwnedJeepneyId();
+      if (!ownedId) return;
+      const unit = jeepneysRef.current.find((j) => j.id === ownedId);
+      if (unit) queuePush([unit]);
+    };
+    beat();
+    const interval = setInterval(beat, LIVE_HEARTBEAT_MS);
+    return () => clearInterval(interval);
+  }, [queuePush]);
 
   // Track progress of en-route jeepneys (0.0 to 1.0 along the corridor path)
   const progressRef = useRef<Record<string, number>>({});
