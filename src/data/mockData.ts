@@ -635,6 +635,23 @@ export const MOCK_USERS: User[] = [
 
 export const MOCK_COMMUTERS: CommuterUser[] = [
   {
+    id: 'commuter-stu-demo',
+    fullName: 'Juan Dela Cruz (Demo Student)',
+    idNumber: '2023-00001',
+    email: 'student@plmun.edu.ph',
+    password: 'student123',
+    commuterType: 'student',
+    collegeOrDepartment: 'College of Information Technology (CIT)',
+    courseOrProgram: 'BS Information Technology',
+    yearLevel: '2nd Year',
+    contactNumber: '0917-000-1122',
+    isVerifiedPlmun: true,
+    transitDiscountEligible: true,
+    avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    createdAt: '2024-08-01T08:00:00Z',
+    lastLoginAt: 'Today, 08:30 AM',
+  },
+  {
     id: 'commuter-stu-01',
     fullName: 'Joshua Santos',
     idNumber: '2022-04921',

@@ -27,7 +27,12 @@ import {
   ChevronRight,
   MoreVertical,
   CheckSquare,
-  Square
+  Square,
+  KeyRound,
+  Copy,
+  Check,
+  EyeOff,
+  Lock
 } from 'lucide-react';
 
 export const RegisteredUsersView: React.FC = () => {
@@ -36,6 +41,7 @@ export const RegisteredUsersView: React.FC = () => {
     deleteCommuter, 
     toggleCommuterDiscount, 
     registerCommuter,
+    resetCommuterPassword,
     refreshCommuters,
   } = useAuth();
   const { showToast } = useToast();
@@ -67,6 +73,56 @@ export const RegisteredUsersView: React.FC = () => {
     yearLevel: '1st Year',
     contactNumber: '',
   });
+
+  // Password reveal state
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+  const toggleRevealPassword = (id: string) => {
+    setRevealedPasswords((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  // Password Reset Modal State
+  const [commuterToReset, setCommuterToReset] = useState<CommuterUser | null>(null);
+  const [newCommuterPassword, setNewCommuterPassword] = useState('');
+  const [resetError, setResetError] = useState<string | null>(null);
+
+  // Issued Credentials Receipt Modal State
+  const [issuedCommuterSlip, setIssuedCommuterSlip] = useState<CommuterUser | null>(null);
+  const [copiedSlip, setCopiedSlip] = useState(false);
+
+  const handleCopySlip = (user?: CommuterUser | null) => {
+    const target = user || issuedCommuterSlip;
+    if (!target) return;
+    const text = `=== JEEPTRACK MUNTINLUPA COMMUTER PASS CREDENTIALS ===\nName: ${target.fullName}\nID Number: ${target.idNumber}\nRole: ${target.commuterType.toUpperCase()}\n----------------------------------------\nLogin Email / ID: ${target.email} or ${target.idNumber}\nPassword: ${target.password}\n----------------------------------------\nPortal: Student & Commuter Transit Pass`;
+    navigator.clipboard.writeText(text);
+    setCopiedSlip(true);
+    showToast({
+      type: 'success',
+      title: 'Credentials Copied',
+      message: `Login credentials for ${target.fullName} copied to clipboard.`,
+      duration: 3000,
+    });
+    setTimeout(() => setCopiedSlip(false), 2500);
+  };
+
+  const handleResetPasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commuterToReset) return;
+    setResetError(null);
+
+    const res = resetCommuterPassword(commuterToReset.id, newCommuterPassword);
+    if (res.success) {
+      showToast({
+        type: 'success',
+        title: 'Password Updated',
+        message: `Password for ${commuterToReset.fullName} has been successfully updated.`,
+        duration: 3500,
+      });
+      setCommuterToReset(null);
+      setNewCommuterPassword('');
+    } else {
+      setResetError(res.error || 'Failed to update password.');
+    }
+  };
 
   // Filtered Commuters
   const filteredCommuters = useMemo(() => {
@@ -208,6 +264,9 @@ export const RegisteredUsersView: React.FC = () => {
         duration: 4000,
       });
       setShowAddModal(false);
+      if (result.commuter) {
+        setIssuedCommuterSlip(result.commuter);
+      }
       setFormData({
         fullName: '',
         idNumber: '',
@@ -543,9 +602,9 @@ export const RegisteredUsersView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Contact & Email */}
+                      {/* Contact & Email & Password */}
                       <td className="py-3 px-4">
-                        <div className="text-slate-600 dark:text-slate-300 truncate max-w-[170px]">
+                        <div className="text-slate-700 dark:text-slate-200 font-medium truncate max-w-[170px]">
                           {user.email}
                         </div>
                         {user.contactNumber && (
@@ -553,6 +612,20 @@ export const RegisteredUsersView: React.FC = () => {
                             {user.contactNumber}
                           </div>
                         )}
+                        <div className="flex items-center gap-1.5 font-mono text-[11px] mt-0.5">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase">Pass:</span>
+                          <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                            {revealedPasswords[user.id] ? user.password : '••••••'}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => toggleRevealPassword(user.id)}
+                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                            title={revealedPasswords[user.id] ? "Hide Password" : "Show Password"}
+                          >
+                            {revealedPasswords[user.id] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                          </button>
+                        </div>
                       </td>
 
                       {/* 20% Discount Status */}
@@ -593,17 +666,38 @@ export const RegisteredUsersView: React.FC = () => {
                         )}
                       </td>
 
-                      {/* Action Column matching Reference: Eye & More icons */}
+                      {/* Action Column matching Reference: Eye, Key, Copy, Delete icons */}
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1 text-slate-400">
                           <button
+                            type="button"
                             onClick={() => setSelectedUser(user)}
                             className="p-1 rounded-lg hover:text-blue-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-                            title="View User Details"
+                            title="View User Details & Pass"
                           >
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
+                            type="button"
+                            onClick={() => {
+                              setCommuterToReset(user);
+                              setNewCommuterPassword(user.password || 'password123');
+                            }}
+                            className="p-1 rounded-lg hover:text-amber-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Reset / Update Password"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCopySlip(user)}
+                            className="p-1 rounded-lg hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                            title="Copy Login Credentials"
+                          >
+                            <Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleDelete(user.id, user.fullName)}
                             className="p-1 rounded-lg hover:text-rose-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
                             title="Delete Account"
@@ -759,6 +853,12 @@ export const RegisteredUsersView: React.FC = () => {
                   {selectedUser.email}
                 </span>
               </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400 font-bold uppercase">Login Password:</span>
+                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                  {selectedUser.password}
+                </span>
+              </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-400 font-bold uppercase">Fare Discount:</span>
                 <span className={`font-black ${selectedUser.transitDiscountEligible ? 'text-emerald-600' : 'text-slate-600'}`}>
@@ -767,12 +867,153 @@ export const RegisteredUsersView: React.FC = () => {
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedUser(null)}
-              className="w-full py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs"
-            >
-              Close
-            </button>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => handleCopySlip(selectedUser)}
+                className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer transition-colors"
+              >
+                <Copy className="w-3.5 h-3.5" />
+                <span>Copy Credentials</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSelectedUser(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: RESET COMMUTER PASSWORD
+          ========================================================================= */}
+      {commuterToReset && (
+        <div className="fixed inset-0 z-[9000] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 max-w-sm w-full shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-amber-500" />
+                <h3 className="font-extrabold text-slate-900 dark:text-white text-base">
+                  Update Commuter Password
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCommuterToReset(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleResetPasswordSubmit} className="space-y-3.5 text-xs">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-3 rounded-xl space-y-1">
+                <div className="font-bold text-slate-900 dark:text-white">{commuterToReset.fullName}</div>
+                <div className="font-mono text-slate-500 text-[11px]">{commuterToReset.email} &bull; ID: {commuterToReset.idNumber}</div>
+              </div>
+
+              <div>
+                <label className="text-slate-700 dark:text-slate-300 font-semibold block mb-1">
+                  New Password:
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Min 4 characters"
+                  value={newCommuterPassword}
+                  onChange={(e) => setNewCommuterPassword(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-mono font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {resetError && <p className="text-rose-600 text-xs font-semibold">{resetError}</p>}
+
+              <div className="pt-2 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCommuterToReset(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-semibold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-500 shadow-md cursor-pointer"
+                >
+                  Save Password
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODAL: ISSUED COMMUTER SLIP (RECEIPT AFTER REGISTRATION)
+          ========================================================================= */}
+      {issuedCommuterSlip && (
+        <div className="fixed inset-0 z-[9000] bg-black/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="text-center space-y-2">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center mx-auto text-emerald-600">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <h3 className="font-extrabold text-lg text-slate-900 dark:text-white">
+                Commuter Account Created!
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                The transit pass credentials below are ready for immediate sign-in.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 dark:bg-slate-800/60 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 text-xs font-mono space-y-2">
+              <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400 font-bold">NAME:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{issuedCommuterSlip.fullName}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400 font-bold">STUDENT/EMP ID:</span>
+                <span className="font-bold text-blue-600 dark:text-blue-400">{issuedCommuterSlip.idNumber}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400 font-bold">LOGIN EMAIL:</span>
+                <span className="font-bold text-slate-900 dark:text-white">{issuedCommuterSlip.email}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-slate-200 dark:border-slate-700">
+                <span className="text-slate-400 font-bold">PASSWORD:</span>
+                <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">{issuedCommuterSlip.password}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-slate-400 font-bold">ROLE & DISCOUNT:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200 capitalize">
+                  {issuedCommuterSlip.commuterType} ({issuedCommuterSlip.transitDiscountEligible ? '20% Discount' : 'Regular'})
+                </span>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleCopySlip(issuedCommuterSlip)}
+                className={`flex-1 py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-md transition-all ${
+                  copiedSlip ? 'bg-emerald-700 text-white' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+              >
+                {copiedSlip ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedSlip ? 'Copied to Clipboard!' : 'Copy Credentials'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIssuedCommuterSlip(null)}
+                className="px-5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs cursor-pointer"
+              >
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -196,8 +196,8 @@ function AppContent() {
     else if (!prev.driver && isDriverAuthenticated) {
       setCurrentRole('driver');
     }
-    // User newly signed in as commuter (do not hijack if operator is actively in Admin Portal)
-    else if (!prev.commuter && isCommuterAuthenticated && !isOperatorAuthenticated) {
+    // User newly signed in as commuter
+    else if (!prev.commuter && isCommuterAuthenticated) {
       setCurrentRole('commuter');
     }
     // Any user signed out
@@ -433,7 +433,7 @@ function AppContent() {
             {currentRole === 'commuter' && (
               !isCommuterAuthenticated && !isGuestCommuter && !isOperatorAuthenticated ? (
                 <CommuterAuthView
-                  onSuccess={() => {}}
+                  onSuccess={() => setCurrentRole('commuter')}
                   onContinueAsGuest={() => setIsGuestCommuter(true)}
                   onBackToLanding={() => setCurrentRole(isOperatorAuthenticated ? 'operator' : 'landing')}
                 />

@@ -85,6 +85,7 @@ interface AuthContextType {
   updateDriver: (driverId: string, updates: Partial<Driver>) => void;
   deleteDriver: (driverId: string) => { success: boolean; error?: string };
   resetDriverPassword: (driverId: string, newPassword: string) => { success: boolean; error?: string };
+  resetCommuterPassword: (commuterId: string, newPassword: string) => { success: boolean; error?: string };
   refreshCommuters: () => void;
 }
 
@@ -502,12 +503,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { success: true };
   };
 
+  // Reset Commuter Password (for Admin Management & Recovery)
+  const resetCommuterPassword = (commuterId: string, newPassword: string) => {
+    if (!newPassword || newPassword.trim().length < 4) {
+      return { success: false, error: 'Password must be at least 4 characters.' };
+    }
+    const cleanPass = newPassword.trim();
+    let updatedCommuters: CommuterUser[] = [];
+    setCommuters((prev) => {
+      updatedCommuters = prev.map((c) => (c.id === commuterId ? { ...c, password: cleanPass } : c));
+      try {
+        localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(updatedCommuters));
+        authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: updatedCommuters });
+      } catch (e) {}
+      return updatedCommuters;
+    });
+
+    if (currentCommuter && currentCommuter.id === commuterId) {
+      const updated = { ...currentCommuter, password: cleanPass };
+      setCurrentCommuter(updated);
+      try {
+        localStorage.setItem(COMMUTER_SESSION_KEY, JSON.stringify(updated));
+      } catch (e) {}
+    }
+
+    return { success: true };
+  };
+
   // Commuter (Student / Faculty / Employee) Login
   const loginCommuter = (idOrEmail: string, password: string) => {
-    const trimmedInput = normalizeEmail(idOrEmail);
-    const trimmedPass = password.trim();
+    const rawInput = (idOrEmail || '').trim();
+    const cleanEmailInput = normalizeEmail(rawInput);
+    const cleanIdInput = rawInput.replace(/[^a-z0-9]/gi, '').toLowerCase();
+    const cleanNameInput = rawInput.toLowerCase().replace(/\s+/g, ' ');
+    const trimmedPass = (password || '').trim();
 
-    if (!trimmedInput || !trimmedPass) {
+    if (!rawInput || !trimmedPass) {
       return { success: false, error: 'Please enter your PLMun ID or Email and password.' };
     }
 
@@ -520,27 +551,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (e) {}
 
-    const found = latestCommuters.find((c) => {
-      const matchesId = c.idNumber.trim().toLowerCase() === trimmedInput;
-      const matchesEmail = normalizeEmail(c.email) === trimmedInput;
-      return (matchesId || matchesEmail) && c.password === trimmedPass;
+    // Find commuter by Email, ID number, Username, or Full Name
+    const matchedAccount = latestCommuters.find((c) => {
+      const cEmail = normalizeEmail(c.email);
+      const cEmailUser = cEmail.split('@')[0];
+      const cIdClean = c.idNumber.replace(/[^a-z0-9]/gi, '').toLowerCase();
+      const cIdExact = c.idNumber.trim().toLowerCase();
+      const cName = c.fullName.trim().toLowerCase().replace(/\s+/g, ' ');
+
+      return (
+        cEmail === cleanEmailInput ||
+        cEmail.replace('plumn.edu.ph', 'plmun.edu.ph') === cleanEmailInput.replace('plumn.edu.ph', 'plmun.edu.ph') ||
+        cEmailUser === rawInput.toLowerCase() ||
+        cIdExact === rawInput.toLowerCase() ||
+        (cleanIdInput.length >= 4 && cIdClean === cleanIdInput) ||
+        cName === cleanNameInput
+      );
     });
 
-    if (!found) {
+    if (!matchedAccount) {
       return {
         success: false,
-        error: 'Invalid PLMun credentials. Please check your Student/Employee ID or institutional email.',
+        error: `No PLMun account found matching "${rawInput}". Please check your Student/Employee ID or email, or create an account first.`,
+      };
+    }
+
+    // Check password
+    if (matchedAccount.password !== trimmedPass) {
+      return {
+        success: false,
+        error: 'Incorrect password for this PLMun account. Please check your password or contact your administrator.',
       };
     }
 
     const updatedCommuter: CommuterUser = {
-      ...found,
+      ...matchedAccount,
       lastLoginAt: new Date().toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' }) + ' Today',
     };
 
-    setCommuters((prev) => prev.map((c) => (c.id === found.id ? updatedCommuter : c)));
+    // Update commuters list in memory and localStorage
+    const nextCommuters = latestCommuters.map((c) => (c.id === matchedAccount.id ? updatedCommuter : c));
+    setCommuters(nextCommuters);
+    try {
+      localStorage.setItem(COMMUTERS_STORAGE_KEY, JSON.stringify(nextCommuters));
+      authChannelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: nextCommuters });
+    } catch (e) {}
+
+    // Set active commuter session and clear any conflicting operator or driver session on this client
     setCurrentCommuter(updatedCommuter);
     localStorage.setItem(COMMUTER_SESSION_KEY, JSON.stringify(updatedCommuter));
+    setCurrentOperator(null);
+    localStorage.removeItem(OPERATOR_SESSION_KEY);
+    setCurrentDriver(null);
+    localStorage.removeItem(DRIVER_SESSION_KEY);
+
     return { success: true, commuter: updatedCommuter };
   };
 
@@ -713,6 +777,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateDriver,
         deleteDriver,
         resetDriverPassword,
+        resetCommuterPassword,
         refreshCommuters,
       }}
     >

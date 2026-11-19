@@ -132,6 +132,12 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
         return;
       }
 
+      if (commuterRes.error && commuterRes.error.includes('Incorrect password')) {
+        setIsLoading(false);
+        setError(commuterRes.error);
+        return;
+      }
+
       if (driverRes.error && driverRes.error.includes('suspended')) {
         setIsLoading(false);
         setError(driverRes.error);
@@ -139,7 +145,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
       }
 
       setIsLoading(false);
-      setError('Invalid credentials. Please verify your Student/Employee ID, Driver username, or Admin username and password.');
+      setError('Invalid credentials. Please check your PLMun School Email or ID Number and password.');
     }, 350);
   };
 
@@ -277,10 +283,10 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
           <>
             {/* Form */}
             <form onSubmit={handleSignInSubmit} className="mt-6 space-y-4">
-              {/* Field 1: Email */}
+              {/* Field 1: Email or ID */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Email
+                  PLMun Email or ID Number
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
@@ -291,7 +297,7 @@ export const UnifiedAuthModal: React.FC<UnifiedAuthModalProps> = ({
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    placeholder="Enter Your Email"
+                    placeholder="e.g. user@plmun.edu.ph or 2026-0084"
                     className="w-full pl-9 pr-3.5 py-2.5 rounded-[7px] border border-slate-200 dark:border-slate-750 bg-white dark:bg-[#181a24] text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-slate-400 dark:focus:ring-slate-500 transition-all"
                   />
                 </div>
