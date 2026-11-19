@@ -794,7 +794,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const target = prev.find(j => j.id === jeepneyId);
       if (!target) return prev;
 
-      const preserveLoc = Boolean(options?.preserveLocation);
+      const preserveLoc = options?.preserveLocation !== false;
       progressRef.current[jeepneyId] = preserveLoc
         ? findClosestProgressOnPath(PLMUN_ALABANG_PATH, target.currentLat, target.currentLng, direction)
         : 0.0;
@@ -819,7 +819,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
           currentLat: latToUse,
           currentLng: lngToUse,
           heading: preserveLoc ? j.heading : roadPos.bearing,
-          speedKmh: preserveLoc ? j.speedKmh : 24,
+          speedKmh: preserveLoc ? (j.speedKmh || 0) : 0,
           etaMinutes: etaMins,
           distanceRemainingKm: preserveLoc ? remainingKm : 6.8,
           destinationName: direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal (Poblacion)',
@@ -840,9 +840,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         direction: direction,
         startTime: nowTime,
         status: 'active',
-        passengerCount: target.currentPassengers || 12,
-        distanceCoveredKm: 0.1,
-        maxSpeedKmh: 28,
+        passengerCount: target.currentPassengers || 0,
+        distanceCoveredKm: 0,
+        maxSpeedKmh: target.speedKmh || 0,
         deviationsRecorded: 0,
       };
 
@@ -871,7 +871,7 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const terminalCoord: [number, number] = isAtAlabang 
         ? [14.42076, 121.04357] 
         : [14.38909, 121.02559];
-      const preserveLoc = Boolean(options?.preserveLocation);
+      const preserveLoc = options?.preserveLocation !== false;
       const latToUse = preserveLoc ? target.currentLat : terminalCoord[0];
       const lngToUse = preserveLoc ? target.currentLng : terminalCoord[1];
 

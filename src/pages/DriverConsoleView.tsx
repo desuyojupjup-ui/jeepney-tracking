@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Jeepney, Terminal, RouteStop, TripDirection } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useTransit } from '../context/TransitContext';
-import { PLMUN_ALABANG_PATH } from '../data/mockData';
-import { interpolatePositionOnPath, calculateBearing, getDistanceKm } from '../utils/geoUtils';
+import { calculateBearing, getDistanceKm } from '../utils/geoUtils';
 import { 
   Play, 
   Square, 
@@ -78,7 +77,6 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     || jeepneys[0]
     || fallbackUnit;
 
-  const [useDeviceGps, setUseDeviceGps] = useState<boolean>(true);
   const [gpsStatus, setGpsStatus] = useState<'acquiring' | 'locked' | 'denied'>('acquiring');
   const [gpsAccuracy, setGpsAccuracy] = useState<number>(activeJeepney.accuracyMeters || 3.5);
   const [direction, setDirection] = useState<TripDirection>(activeJeepney.direction || 'PLMun_to_Alabang');
@@ -150,14 +148,12 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
     updateJeepneyPassengers(activeJeepney.id, newCount);
   };
 
-  // Start / End Trip Actions
+  // Start / End Trip Actions (never auto-moves or teleports vehicle — movement strictly follows real driver GPS)
   const handleToggleTrip = () => {
-    const liveGpsReady = useDeviceGps && gpsStatus === 'locked';
     if (isTripActive) {
       const confirmEnd = window.confirm(`End current trip and arrive at ${direction === 'PLMun_to_Alabang' ? 'Alabang South Station' : 'PLMun Terminal'}?`);
       if (confirmEnd) {
-        endTrip(activeJeepney.id, { preserveLocation: liveGpsReady });
-        progressRef.current = 0.0;
+        endTrip(activeJeepney.id, { preserveLocation: true });
         // Switch next planned direction
         setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang');
       }
@@ -165,17 +161,15 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       if (currentDriver && currentDriver.status !== 'on_duty') {
         updateDriver(currentDriver.id, { status: 'on_duty' });
       }
-      progressRef.current = 0.0;
       startTrip(activeJeepney.id, direction, {
-        preserveLocation: liveGpsReady,
+        preserveLocation: true,
         driverName: activeDriverName,
         assignedDriverId: currentDriver?.id,
       });
     }
   };
 
-  // Active Trip GPS Progression Loop (simulates driving along corridor when not using hardware GPS)
-  const progressRef = useRef<number>(0.0);
+  // Refs for real GPS heading and movement tracking
   const latestHeadingRef = useRef<number>(activeJeepney.heading || 182);
   const lastGpsFixRef = useRef<[number, number] | null>(null);
 
@@ -184,44 +178,6 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       latestHeadingRef.current = activeJeepney.heading;
     }
   }, [activeJeepney.heading]);
-
-  useEffect(() => {
-    if (!isTripActive || useDeviceGps) return;
-
-    const interval = setInterval(() => {
-      progressRef.current += 0.015;
-      if (progressRef.current >= 0.98) {
-        // Automatically dock at destination terminal
-        endTrip(activeJeepney.id);
-        progressRef.current = 0.0;
-        setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang');
-        return;
-      }
-
-      const roadPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, progressRef.current, direction);
-      const remainingKm = Math.max(0.1, +(6.8 * (1 - progressRef.current)).toFixed(1));
-      const etaMins = Math.max(1, Math.round((remainingKm / 22) * 60));
-      const speed = Math.round(22 + Math.random() * 8);
-
-      // Determine next stop landmark (Official 6-Stop Sequence)
-      const nextStop = direction === 'PLMun_to_Alabang'
-        ? (progressRef.current < 0.38 ? 'Muntinlupa City Hall Complex' : progressRef.current < 0.55 ? 'Soldiers Hills / Summitville' : progressRef.current < 0.72 ? 'Bayanan Public Market' : progressRef.current < 0.86 ? 'Montillano Commercial Strip' : 'Alabang South Station Terminal')
-        : (progressRef.current < 0.20 ? 'Montillano Commercial Strip' : progressRef.current < 0.42 ? 'Bayanan Public Market' : progressRef.current < 0.60 ? 'Soldiers Hills / Summitville' : progressRef.current < 0.78 ? 'Muntinlupa City Hall Complex' : 'PLMun University Terminal');
-
-      updateJeepney(activeJeepney.id, {
-        currentLat: roadPos.lat,
-        currentLng: roadPos.lng,
-        heading: roadPos.bearing,
-        speedKmh: speed,
-        distanceRemainingKm: remainingKm,
-        etaMinutes: etaMins,
-        nextStopName: nextStop,
-        lastGpsUpdate: 'Just now',
-      });
-    }, 3000);
-
-    return () => clearInterval(interval);
-  }, [isTripActive, useDeviceGps, activeJeepney.id, direction, endTrip, updateJeepney]);
 
   // Emergency SOS Trigger
   const handleTriggerEmergencySos = () => {
@@ -262,7 +218,6 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           const roundedAcc = Math.round(cachedGps.accuracy || 4);
           setGpsStatus('locked');
           setGpsAccuracy(roundedAcc);
-          setUseDeviceGps(true);
           lastGpsFixRef.current = [cachedGps.lat, cachedGps.lng];
 
           updateJeepney(activeJeepney.id, {
@@ -284,13 +239,12 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const { latitude, longitude, speed, heading, accuracy } = position.coords;
-          const speedKmh = speed !== null && !isNaN(speed) ? Math.round(speed * 3.6) : 0;
+          const speedKmh = speed !== null && !isNaN(speed) && speed > 0.3 ? Math.round(speed * 3.6) : 0;
           const roundedAcc = Math.round(accuracy);
           const nextHeading = heading !== null && !isNaN(heading) ? heading : latestHeadingRef.current;
 
           setGpsStatus('locked');
           setGpsAccuracy(roundedAcc);
-          setUseDeviceGps(true);
           lastGpsFixRef.current = [latitude, longitude];
           latestHeadingRef.current = nextHeading;
 
@@ -307,25 +261,23 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           console.warn('Initial live GPS acquisition error:', err.message);
           if (!initialAcquired) {
             setGpsStatus('denied');
-            setUseDeviceGps(false);
           }
         },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
       setGpsStatus('denied');
-      setUseDeviceGps(false);
     }
   }, [activeJeepney.id, updateJeepney]);
 
-  // Continuous Live GPS Watcher (tracks real movement smoothly without restarting listener on every tick)
+  // Continuous Live GPS Watcher (vehicle ONLY moves when real device GPS detects actual movement)
   useEffect(() => {
-    if (!useDeviceGps || typeof navigator === 'undefined' || !navigator.geolocation) return;
+    if (typeof navigator === 'undefined' || !navigator.geolocation) return;
 
     const watchId = navigator.geolocation.watchPosition(
       (position) => {
         const { latitude, longitude, speed, heading, accuracy } = position.coords;
-        const speedKmh = speed !== null && !isNaN(speed) ? Math.round(speed * 3.6) : 0;
+        const speedKmh = speed !== null && !isNaN(speed) && speed > 0.3 ? Math.round(speed * 3.6) : 0;
         const roundedAcc = Math.round(accuracy);
 
         // Derive heading from movement vector if hardware compass heading is unavailable
@@ -365,11 +317,11 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
         console.warn('HTML5 Geolocation continuous watch error:', err.message);
         setGpsStatus('denied');
       },
-      { enableHighAccuracy: true, maximumAge: 1500, timeout: 8000 }
+      { enableHighAccuracy: true, maximumAge: 1500, timeout: 10000 }
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [useDeviceGps, activeJeepney.id, direction, updateJeepney]);
+  }, [activeJeepney.id, direction, updateJeepney]);
 
   return (
     <div className="max-w-md lg:max-w-5xl mx-auto px-3 sm:px-6 py-3 sm:py-5 space-y-3 sm:space-y-4 font-sans text-slate-900 dark:text-slate-100 pb-16">
@@ -452,83 +404,74 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           onToggleDirection={() => setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang')}
         />
 
-        {/* GPS Live Status Banner (Fully Functional Real-Time Indicator) */}
+        {/* GPS Live Status Banner (Real Device GPS Only — Moves Only With Driver Movement) */}
         <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-all shadow-sm ${
-          useDeviceGps && gpsStatus === 'locked'
+          gpsStatus === 'locked'
             ? 'bg-emerald-50 dark:bg-emerald-950/70 border-emerald-200 dark:border-emerald-800/80 text-emerald-900 dark:text-emerald-200' 
-            : useDeviceGps && gpsStatus === 'acquiring'
+            : gpsStatus === 'acquiring'
             ? 'bg-amber-50 dark:bg-amber-950/70 border-amber-200 dark:border-amber-800/80 text-amber-900 dark:text-amber-200'
-            : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+            : 'bg-rose-50 dark:bg-rose-950/60 border-rose-200 dark:border-rose-800/80 text-rose-900 dark:text-rose-200'
         }`}>
           <div className="flex items-center gap-3 min-w-0">
             <Radio className={`w-5 h-5 shrink-0 ${
-              useDeviceGps && gpsStatus === 'locked' ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' :
-              useDeviceGps && gpsStatus === 'acquiring' ? 'text-amber-500 animate-spin' : 'text-slate-400'
+              gpsStatus === 'locked' ? 'text-emerald-600 dark:text-emerald-400 animate-pulse' :
+              gpsStatus === 'acquiring' ? 'text-amber-500 animate-spin' : 'text-rose-500'
             }`} />
             <div className="min-w-0">
               <div className="font-extrabold uppercase tracking-wider text-xs truncate">
-                {useDeviceGps && gpsStatus === 'locked' ? 'Phone GPS Online (Live Device Location)' :
-                 useDeviceGps && gpsStatus === 'acquiring' ? 'Acquiring Phone GPS Location...' :
-                 useDeviceGps && gpsStatus === 'denied' ? 'Phone GPS Blocked (Check Permissions)' :
-                 'Simulated Corridor GPS (Demo Trajectory)'}
+                {gpsStatus === 'locked' ? 'Live Device GPS Online (Real Movement Tracking)' :
+                 gpsStatus === 'acquiring' ? 'Acquiring Device GPS Location...' :
+                 'Device GPS Blocked / Unavailable'}
               </div>
               <div className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5 font-mono">
-                {useDeviceGps && gpsStatus === 'locked'
+                {gpsStatus === 'locked'
                   ? `Lat: ${activeJeepney.currentLat.toFixed(5)}°, Lng: ${activeJeepney.currentLng.toFixed(5)}° • ±${gpsAccuracy}m • Live`
-                  : useDeviceGps && gpsStatus === 'acquiring'
-                  ? 'Connecting to phone GPS sensor...'
-                  : 'Following virtual trajectory along PLMun-Alabang'}
+                  : gpsStatus === 'acquiring'
+                  ? 'Waiting for GPS sensor — jeepney moves only when you drive'
+                  : 'Enable Location Services so your jeepney moves as you drive'}
               </div>
             </div>
           </div>
 
-          {/* Real Device GPS Hardware Toggle */}
+          {/* Refresh / Retry Live Device GPS Button */}
           <button
             onClick={() => {
-              const next = !useDeviceGps;
-              setUseDeviceGps(next);
-              if (next) {
-                setGpsStatus('acquiring');
-                if (typeof navigator !== 'undefined' && navigator.geolocation) {
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      const roundedAcc = Math.round(pos.coords.accuracy);
-                      setGpsStatus('locked');
-                      setGpsAccuracy(roundedAcc);
-                      lastGpsFixRef.current = [pos.coords.latitude, pos.coords.longitude];
-                      updateJeepney(activeJeepney.id, {
-                        currentLat: pos.coords.latitude,
-                        currentLng: pos.coords.longitude,
-                        speedKmh: pos.coords.speed !== null && !isNaN(pos.coords.speed) ? Math.round(pos.coords.speed * 3.6) : 0,
-                        heading: pos.coords.heading !== null && !isNaN(pos.coords.heading) ? pos.coords.heading : latestHeadingRef.current,
-                        accuracyMeters: roundedAcc,
-                        lastGpsUpdate: 'Just now'
-                      });
-                    },
-                    () => setGpsStatus('denied'),
-                    { enableHighAccuracy: true, timeout: 6000, maximumAge: 0 }
-                  );
-                }
+              setGpsStatus('acquiring');
+              if (typeof navigator !== 'undefined' && navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                  (pos) => {
+                    const roundedAcc = Math.round(pos.coords.accuracy);
+                    const speedKmh = pos.coords.speed !== null && !isNaN(pos.coords.speed) && pos.coords.speed > 0.3
+                      ? Math.round(pos.coords.speed * 3.6)
+                      : 0;
+                    setGpsStatus('locked');
+                    setGpsAccuracy(roundedAcc);
+                    lastGpsFixRef.current = [pos.coords.latitude, pos.coords.longitude];
+                    updateJeepney(activeJeepney.id, {
+                      currentLat: pos.coords.latitude,
+                      currentLng: pos.coords.longitude,
+                      speedKmh: speedKmh,
+                      heading: pos.coords.heading !== null && !isNaN(pos.coords.heading) ? pos.coords.heading : latestHeadingRef.current,
+                      accuracyMeters: roundedAcc,
+                      lastGpsUpdate: 'Just now'
+                    });
+                  },
+                  () => setGpsStatus('denied'),
+                  { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+                );
               } else {
-                const startPos = interpolatePositionOnPath(PLMUN_ALABANG_PATH, progressRef.current, direction);
-                updateJeepney(activeJeepney.id, {
-                  currentLat: startPos.lat,
-                  currentLng: startPos.lng,
-                  heading: startPos.bearing,
-                  accuracyMeters: 4.0,
-                  lastGpsUpdate: 'Simulated Corridor',
-                });
+                setGpsStatus('denied');
               }
             }}
             className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer ${
-              useDeviceGps
+              gpsStatus === 'locked'
                 ? 'bg-emerald-600 text-white border-emerald-500 hover:bg-emerald-700'
                 : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-50'
             }`}
-            title="Tap to toggle live phone GPS vs simulated GPS"
+            title="Refresh live device GPS location"
           >
             <LocateFixed className="w-3.5 h-3.5" />
-            <span>{useDeviceGps ? 'Phone GPS' : 'Simulated GPS'}</span>
+            <span>{gpsStatus === 'locked' ? 'Live GPS' : 'Retry GPS'}</span>
           </button>
         </div>
 
