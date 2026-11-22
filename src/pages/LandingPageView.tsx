@@ -27,7 +27,12 @@ import {
   ArrowUpDown,
   Building2,
   Building,
-  Briefcase
+  Briefcase,
+  Phone,
+  Mail,
+  Globe,
+  ExternalLink,
+  MessageSquare
 } from 'lucide-react';
 
 interface LandingPageViewProps {
@@ -51,6 +56,26 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
   const [selectedPreviewStop, setSelectedPreviewStop] = useState<number>(0);
 
+  // Sync terminal hotline & operating hours from System Settings if configured
+  const systemContact = React.useMemo(() => {
+    try {
+      const saved = localStorage.getItem('jeeptrack_system_settings_v1');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return {
+          hotline: parsed.operationsHotline || '0917-800-PLMUN (75686)',
+          hours: parsed.operatingHours || '05:00 AM – 10:00 PM',
+          agency: parsed.operatorAgency || 'City of Muntinlupa Transport Management Division & PLMun Cooperative',
+        };
+      }
+    } catch {}
+    return {
+      hotline: '0917-800-PLMUN (75686)',
+      hours: '05:00 AM – 10:00 PM',
+      agency: 'City of Muntinlupa Transport Management Division & PLMun Cooperative',
+    };
+  }, []);
+
   const activeJeepneyCount = jeepneys.filter(j => j.status !== 'offline').length || 7;
   const currentStop = stops[selectedPreviewStop] || stops[0] || {
     id: 'stop-1',
@@ -64,7 +89,7 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
   const faqs = [
     {
       q: 'Who has access to the JeepTrack Muntinlupa system?',
-      a: 'The commuter tracking portal is built exclusively for actively enrolled students, faculty members, and employees of Pamantasan ng Lungsod ng Muntinlupa (PLMun). Jeepney drivers utilize the in-cab console, and authorized city transport personnel access the Central Dispatch Control Center.',
+      a: 'The commuter tracking portal is built exclusively for actively enrolled students and faculty members of Pamantasan ng Lungsod ng Muntinlupa (PLMun). Jeepney drivers utilize the in-cab console, and authorized city transport personnel access the Central Dispatch Control Center.',
     },
     {
       q: 'How is the 20% student fare discount applied?',
@@ -735,6 +760,163 @@ export const LandingPageView: React.FC<LandingPageViewProps> = ({
               )}
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* 
+        ======================================================================
+        OFFICIAL LTFRB & TERMINAL OPERATIONS CONTACT SECTION
+        ======================================================================
+      */}
+      <section id="ltfrb-contact" className="relative z-10 py-16 px-4 sm:px-6 lg:px-8 max-w-6xl mx-auto scroll-mt-20">
+        <div className="text-center max-w-2xl mx-auto mb-10 space-y-2">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-blue-50 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Commuter Assistance & Regulatory Compliance</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
+            LTFRB & Terminal Operations Contacts
+          </h2>
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+            Report fare overcharging, student discount violations (RA 11314), reckless driving, or lost items directly to LTFRB or the PLMun–Alabang Terminal Dispatch.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Card 1: Official LTFRB Public Assistance & Complaint Desk */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-blue-200/80 dark:border-blue-900/60 shadow-lg shadow-blue-950/5 flex flex-col justify-between space-y-5">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 dark:bg-blue-950/70 border border-blue-200 dark:border-blue-800 text-blue-600 dark:text-blue-400 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-blue-600 dark:text-blue-400">
+                      Republic of the Philippines • DOTr
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                      LTFRB Public Assistance Desk
+                    </h3>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                  24/7 Hotline
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Land Transportation Franchising and Regulatory Board (LTFRB) — Official regulatory agency for PUJ fare tariffs, franchise verification, and commuter complaints.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <a
+                  href="tel:1342"
+                  className="p-3 rounded-2xl bg-blue-50/70 dark:bg-blue-950/40 border border-blue-200/80 dark:border-blue-800/60 hover:border-blue-400 transition-colors flex items-center gap-2.5"
+                >
+                  <Phone className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">24/7 Hotline</span>
+                    <span className="font-mono font-black text-sm text-blue-700 dark:text-blue-300">1342</span>
+                  </div>
+                </a>
+
+                <a
+                  href="tel:+639175501342"
+                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors flex items-center gap-2.5"
+                >
+                  <MessageSquare className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">SMS / Viber</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 truncate block">0917-550-1342</span>
+                  </div>
+                </a>
+
+                <a
+                  href="mailto:pacd@ltfrb.gov.ph"
+                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors flex items-center gap-2.5"
+                >
+                  <Mail className="w-4 h-4 text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Official Email</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 truncate block">pacd@ltfrb.gov.ph</span>
+                  </div>
+                </a>
+
+                <a
+                  href="https://ltfrb.gov.ph"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 hover:border-blue-400 transition-colors flex items-center gap-2.5"
+                >
+                  <Globe className="w-4 h-4 text-teal-600 dark:text-teal-400 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Official Portal</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 truncate flex items-center gap-1">
+                      <span>ltfrb.gov.ph</span>
+                      <ExternalLink className="w-3 h-3 text-slate-400 shrink-0" />
+                    </span>
+                  </div>
+                </a>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span>East Avenue, Diliman, Quezon City (LTFRB Central &amp; NCR Office)</span>
+            </div>
+          </div>
+
+          {/* Card 2: PLMun–Alabang Terminal Operations & Muntinlupa Dispatch */}
+          <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-7 border border-emerald-200/80 dark:border-emerald-900/60 shadow-lg shadow-emerald-950/5 flex flex-col justify-between space-y-5">
+            <div className="space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/70 border border-emerald-200 dark:border-emerald-800 text-[#006837] dark:text-emerald-400 flex items-center justify-center shrink-0">
+                    <Building2 className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                      Local Corridor Dispatch
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                      Muntinlupa Terminal Operations
+                    </h3>
+                  </div>
+                </div>
+                <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 shrink-0">
+                  PLMun ⇄ Alabang
+                </span>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                {systemContact.agency}. Direct corridor assistance for terminal bay queuing, lost-and-found items, and verified student pass support.
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div className="p-3 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/60 flex items-center gap-2.5">
+                  <Phone className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Terminal Hotline</span>
+                    <span className="font-mono font-black text-emerald-800 dark:text-emerald-300 truncate block">{systemContact.hotline}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 flex items-center gap-2.5">
+                  <Clock className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="min-w-0">
+                    <span className="text-[10px] font-bold uppercase text-slate-400 block">Operating Hours</span>
+                    <span className="font-mono font-bold text-slate-800 dark:text-slate-100 truncate block">{systemContact.hours}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+              <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+              <span>University Road, NBP Reservation, Poblacion, Muntinlupa City</span>
+            </div>
+          </div>
         </div>
       </section>
 

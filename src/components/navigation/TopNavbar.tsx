@@ -23,7 +23,8 @@ import {
   Layers,
   Navigation,
   HelpCircle,
-  ArrowRight
+  ArrowRight,
+  Phone
 } from 'lucide-react';
 import { ThemeToggle } from '../common/ThemeToggle';
 
@@ -66,6 +67,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     { id: 'portals', label: 'Portals', icon: Layers },
     { id: 'route', label: 'Route & Stops', icon: Navigation },
     { id: 'faq', label: 'FAQ', icon: HelpCircle },
+    { id: 'ltfrb-contact', label: 'LTFRB Contact', icon: Phone },
   ];
 
   const scrollToSection = (sectionId: string) => {
@@ -89,7 +91,7 @@ export const TopNavbar: React.FC<TopNavbarProps> = ({
     if (currentRole !== 'landing') return;
 
     const handleScroll = () => {
-      const sectionIds = ['overview', 'telemetry', 'portals', 'route', 'faq'];
+      const sectionIds = ['overview', 'telemetry', 'portals', 'route', 'faq', 'ltfrb-contact'];
       const scrollPosition = window.scrollY + 140;
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
