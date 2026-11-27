@@ -60,15 +60,6 @@ interface DriverGrabMapProps {
   waitingCommuters?: OnlineCommuterPresence[];
 }
 
-function CommuterTargetController({ target }: { target: { lat: number; lng: number; seq: number } | null }) {
-  const map = useMap();
-  useEffect(() => {
-    if (!target) return;
-    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16), { duration: 0.65 });
-  }, [target, map]);
-  return null;
-}
-
 // Controller to smoothly pan to the driver's vehicle without bouncing or shaking
 function DriverNavController({ 
   coords, 
@@ -197,8 +188,6 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false);
   const [mapLayer, setMapLayer] = useState<'streets' | 'satellite'>('streets');
   const [isFullScreen, setIsFullScreen] = useState(false);
-  const [showWaitingPanel, setShowWaitingPanel] = useState(false);
-  const [focusedCommuterTarget, setFocusedCommuterTarget] = useState<{ lat: number; lng: number; seq: number } | null>(null);
 
   // Lock body scroll & support Escape key when Full-Screen Map is active
   useEffect(() => {
@@ -370,9 +359,6 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   // Blue final segment: Bayanan to Alabang South Station Terminal
   const blueFinalSegment = PLMUN_ALABANG_PATH.slice(35);
 
-  const studentWaitingCount = waitingCommuters.filter((c) => c.commuterType === 'student').length;
-  const facultyWaitingCount = waitingCommuters.filter((c) => c.commuterType === 'faculty').length;
-
   // Slightly fan out commuters sharing identical stop coordinates so every waiting passenger pin is visible
   const positionedCommuters = useMemo(() => {
     const groups: Record<string, number> = {};
@@ -390,12 +376,6 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       };
     });
   }, [waitingCommuters]);
-
-  const handleLocateCommuter = (lat: number, lng: number) => {
-    setIsAutoFollowActive(false);
-    setFocusedCommuterTarget((prev) => ({ lat, lng, seq: (prev?.seq || 0) + 1 }));
-    setShowWaitingPanel(false);
-  };
 
   const createCommuterPinIcon = (commuter: OnlineCommuterPresence) => {
     const isStudent = commuter.commuterType === 'student';
@@ -493,100 +473,6 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2B. TOP-LEFT WAITING PASSENGERS RADAR PILL & EXPANDABLE LIST               */}
-      {/* ========================================================================= */}
-      <div className="absolute top-24 sm:top-28 left-2.5 sm:left-3.5 z-[1005] flex flex-col items-start gap-2 pointer-events-none max-w-[calc(100%-96px)] sm:max-w-xs">
-        <button
-          type="button"
-          onClick={() => setShowWaitingPanel((prev) => !prev)}
-          className={`pointer-events-auto h-10 px-3 rounded-xl backdrop-blur-md shadow-lg border flex items-center gap-2 active:scale-95 transition-all cursor-pointer text-xs font-extrabold ${
-            waitingCommuters.length > 0
-              ? 'bg-emerald-600/95 hover:bg-emerald-700 text-white border-emerald-400/80'
-              : 'bg-white/95 dark:bg-slate-900/95 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200/90 dark:border-slate-700'
-          }`}
-          title="View online waiting students and faculty on the route"
-        >
-          <span className={`w-2 h-2 rounded-full shrink-0 ${waitingCommuters.length > 0 ? 'bg-white animate-ping' : 'bg-slate-400'}`} />
-          <Users className="w-4 h-4 shrink-0" />
-          <span className="truncate">
-            {waitingCommuters.length > 0
-              ? `${waitingCommuters.length} Waiting (${studentWaitingCount}S • ${facultyWaitingCount}F)`
-              : '0 Waiting'}
-          </span>
-          {showWaitingPanel ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
-        </button>
-
-        {showWaitingPanel && (
-          <div className="pointer-events-auto w-72 sm:w-80 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 space-y-2.5 text-xs max-h-72 overflow-y-auto">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <div className="font-black text-slate-900 dark:text-white text-xs">
-                  Online Waiting Passengers ({waitingCommuters.length})
-                </div>
-                <div className="text-[10px] text-slate-500 dark:text-slate-400">
-                  {studentWaitingCount} Student(s) &bull; {facultyWaitingCount} Faculty
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowWaitingPanel(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {waitingCommuters.length === 0 ? (
-              <div className="py-5 text-center text-[11px] text-slate-400">
-                No students or faculty are currently waiting online.
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                {positionedCommuters.map((c, idx) => {
-                  const distKm = getDistanceKm(vehicleCoords, [c.lat, c.lng]);
-                  const distLabel = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
-                  const isStudent = c.commuterType === 'student';
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => handleLocateCommuter(c.displayLat, c.displayLng)}
-                      className="p-2 rounded-xl bg-slate-50 hover:bg-emerald-50/70 dark:bg-slate-800/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2 cursor-pointer transition-colors"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0 ${
-                            isStudent ? 'bg-emerald-600' : 'bg-indigo-600'
-                          }`}>
-                            <Users className="w-3 h-3" />
-                          </span>
-                          <span className="font-bold text-slate-900 dark:text-white truncate">
-                            Waiting Passenger #{idx + 1}
-                          </span>
-                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase shrink-0 ${
-                            isStudent
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
-                              : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
-                          }`}>
-                            {isStudent ? 'Student' : 'Faculty'}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          Stop: {c.waitingStopName || 'Corridor'} &bull; {distLabel} away
-                        </div>
-                      </div>
-                      <span className="px-2 py-1 rounded-lg bg-blue-600 text-white font-bold text-[10px] shrink-0">
-                        Locate
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      {/* ========================================================================= */}
       {/* 2. TOP-RIGHT MAP CONTROLS (FULL SCREEN, LAYER TOGGLE & RECENTER GPS)      */}
       {/* ========================================================================= */}
       <div className="absolute top-24 sm:top-28 right-3 sm:right-3.5 z-[1005] flex flex-col items-end gap-2 pointer-events-none">
@@ -645,7 +531,6 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
         style={{ width: '100%', height: '100%' }}
       >
         <MapResizer isFullScreen={isFullScreen} />
-        <CommuterTargetController target={focusedCommuterTarget} />
         <DriverNavController 
           coords={vehicleCoords} 
           heading={activeJeepney.heading || 0} 

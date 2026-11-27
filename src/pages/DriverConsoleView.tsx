@@ -444,7 +444,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
               <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
                 {onlineCommuters.length === 0
                   ? 'No students or faculty currently waiting online along the corridor.'
-                  : `${onlineCommuters.filter(c => c.commuterType === 'student').length} Student(s) • ${onlineCommuters.filter(c => c.commuterType === 'faculty').length} Faculty — tap pins or "Waiting" badge on map to locate`}
+                  : `${onlineCommuters.filter(c => c.commuterType === 'student').length} Student(s) • ${onlineCommuters.filter(c => c.commuterType === 'faculty').length} Faculty — tap user icons on map for stop & distance`}
               </div>
             </div>
           </div>
