@@ -42,6 +42,7 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
   const { currentDriver, logoutDriver, updateDriver } = useAuth();
   const { 
     jeepneys, 
+    onlineCommuters,
     updateJeepney,
     updateJeepneyPassengers, 
     startTrip, 
@@ -416,7 +417,49 @@ export const DriverConsoleView: React.FC<DriverConsoleViewProps> = ({
           onToggleDutyStatus={handleToggleDutyStatus}
           onEndShift={handleEndShift}
           onToggleDirection={() => setDirection(prev => prev === 'PLMun_to_Alabang' ? 'Alabang_to_PLMun' : 'PLMun_to_Alabang')}
+          waitingCommuters={onlineCommuters}
         />
+
+        {/* Live Waiting Passengers (Online Students & Faculty) Summary Strip */}
+        <div className={`p-3.5 sm:p-4 rounded-2xl border flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs transition-all shadow-sm ${
+          onlineCommuters.length > 0
+            ? 'bg-emerald-50/90 dark:bg-emerald-950/60 border-emerald-200 dark:border-emerald-800/80 text-emerald-950 dark:text-emerald-100'
+            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400'
+        }`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border ${
+              onlineCommuters.length > 0
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-800 text-slate-400 border-slate-200 dark:border-slate-700'
+            }`}>
+              <Users className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-extrabold uppercase tracking-wider text-xs flex items-center gap-2">
+                <span>Waiting Passengers Online ({onlineCommuters.length})</span>
+                {onlineCommuters.length > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                )}
+              </div>
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 truncate">
+                {onlineCommuters.length === 0
+                  ? 'No students or faculty currently waiting online along the corridor.'
+                  : `${onlineCommuters.filter(c => c.commuterType === 'student').length} Student(s) • ${onlineCommuters.filter(c => c.commuterType === 'faculty').length} Faculty — tap pins or "Waiting" badge on map to locate`}
+              </div>
+            </div>
+          </div>
+
+          {onlineCommuters.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5 shrink-0">
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-100 dark:bg-emerald-900/70 text-emerald-800 dark:text-emerald-200 font-mono font-bold text-[11px] border border-emerald-200 dark:border-emerald-800">
+                🎓 {onlineCommuters.filter(c => c.commuterType === 'student').length} Student
+              </span>
+              <span className="px-2.5 py-1 rounded-lg bg-indigo-100 dark:bg-indigo-900/70 text-indigo-800 dark:text-indigo-200 font-mono font-bold text-[11px] border border-indigo-200 dark:border-indigo-800">
+                👩‍🏫 {onlineCommuters.filter(c => c.commuterType === 'faculty').length} Faculty
+              </span>
+            </div>
+          )}
+        </div>
 
         {/* GPS Live Status Banner (Real Device GPS Only — Moves Only With Driver Movement) */}
         <div className={`p-3.5 sm:p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs transition-all shadow-sm ${

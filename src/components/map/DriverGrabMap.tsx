@@ -9,9 +9,10 @@ import {
   useMap 
 } from 'react-leaflet';
 import L from 'leaflet';
-import { Jeepney, Terminal, RouteStop, TripDirection } from '../../types';
+import { Jeepney, Terminal, RouteStop, TripDirection, OnlineCommuterPresence } from '../../types';
 import { useTheme } from '../../context/ThemeContext';
 import { PLMUN_ALABANG_PATH } from '../../data/mockData';
+import { getDistanceKm } from '../../utils/geoUtils';
 import { 
   CornerUpLeft, 
   CornerUpRight, 
@@ -56,6 +57,16 @@ interface DriverGrabMapProps {
   onToggleDutyStatus?: () => void;
   onEndShift?: () => void;
   onToggleDirection?: () => void;
+  waitingCommuters?: OnlineCommuterPresence[];
+}
+
+function CommuterTargetController({ target }: { target: { lat: number; lng: number; seq: number } | null }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!target) return;
+    map.flyTo([target.lat, target.lng], Math.max(map.getZoom(), 16), { duration: 0.65 });
+  }, [target, map]);
+  return null;
 }
 
 // Controller to smoothly pan to the driver's vehicle without bouncing or shaking
@@ -176,6 +187,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   onToggleDutyStatus,
   onEndShift,
   onToggleDirection,
+  waitingCommuters = [],
 }) => {
   const { theme } = useTheme();
   const [isAutoFollowActive, setIsAutoFollowActive] = useState(true);
@@ -185,6 +197,8 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const [bottomSheetExpanded, setBottomSheetExpanded] = useState(false);
   const [mapLayer, setMapLayer] = useState<'streets' | 'satellite'>('streets');
   const [isFullScreen, setIsFullScreen] = useState(false);
+  const [showWaitingPanel, setShowWaitingPanel] = useState(false);
+  const [focusedCommuterTarget, setFocusedCommuterTarget] = useState<{ lat: number; lng: number; seq: number } | null>(null);
 
   // Lock body scroll & support Escape key when Full-Screen Map is active
   useEffect(() => {
@@ -353,8 +367,62 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
   const redSegment = PLMUN_ALABANG_PATH.slice(21, 28);
   // 3. Yellow moderate segment: Soldiers Hills to Bayanan Public Market
   const yellowSegment = PLMUN_ALABANG_PATH.slice(27, 36);
-  // 4. Blue final segment: Bayanan to Alabang South Station Terminal
+  // Blue final segment: Bayanan to Alabang South Station Terminal
   const blueFinalSegment = PLMUN_ALABANG_PATH.slice(35);
+
+  const studentWaitingCount = waitingCommuters.filter((c) => c.commuterType === 'student').length;
+  const facultyWaitingCount = waitingCommuters.filter((c) => c.commuterType === 'faculty').length;
+
+  // Slightly fan out commuters sharing identical stop coordinates so every waiting passenger pin is visible
+  const positionedCommuters = useMemo(() => {
+    const groups: Record<string, number> = {};
+    return waitingCommuters.map((c) => {
+      const key = `${c.lat.toFixed(4)}_${c.lng.toFixed(4)}`;
+      const idx = groups[key] || 0;
+      groups[key] = idx + 1;
+      if (idx === 0) return { ...c, displayLat: c.lat, displayLng: c.lng };
+      const angle = (idx * 137.5 * Math.PI) / 180;
+      const radius = 0.00009 * Math.ceil(idx / 3);
+      return {
+        ...c,
+        displayLat: c.lat + Math.cos(angle) * radius,
+        displayLng: c.lng + Math.sin(angle) * radius,
+      };
+    });
+  }, [waitingCommuters]);
+
+  const handleLocateCommuter = (lat: number, lng: number) => {
+    setIsAutoFollowActive(false);
+    setFocusedCommuterTarget((prev) => ({ lat, lng, seq: (prev?.seq || 0) + 1 }));
+    setShowWaitingPanel(false);
+  };
+
+  const createCommuterPinIcon = (commuter: OnlineCommuterPresence) => {
+    const isStudent = commuter.commuterType === 'student';
+    const firstName = (commuter.fullName || 'Commuter').split(' ')[0].replace(/[<>&"']/g, '');
+    const roleLabel = isStudent ? 'Student' : 'Faculty';
+    const bgHex = isStudent ? '#059669' : '#4F46E5';
+    const ringHex = isStudent ? 'rgba(16,185,129,0.35)' : 'rgba(99,102,241,0.35)';
+    const emoji = isStudent ? '🎓' : '👩‍🏫';
+
+    return L.divIcon({
+      html: `
+        <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-92%);pointer-events:auto;cursor:pointer;">
+          <div style="background:${bgHex};color:#fff;padding:2px 7px;border-radius:9999px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.28);border:1.5px solid #fff;display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+            <span>${emoji}</span>
+            <span>${firstName}</span>
+            <span style="opacity:0.85;font-size:9px;font-weight:700;">• ${roleLabel}</span>
+          </div>
+          <div style="width:28px;height:28px;border-radius:9999px;background:${bgHex};border:2.5px solid #fff;box-shadow:0 0 0 5px ${ringHex},0 4px 10px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;">
+            ${emoji}
+          </div>
+        </div>
+      `,
+      className: 'commuter-waiting-pin',
+      iconSize: [1, 1],
+      iconAnchor: [0, 0],
+    });
+  };
 
   return (
     <div
@@ -432,6 +500,94 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
       </div>
 
       {/* ========================================================================= */}
+      {/* 2B. TOP-LEFT WAITING PASSENGERS RADAR PILL & EXPANDABLE LIST               */}
+      {/* ========================================================================= */}
+      <div className="absolute top-24 sm:top-28 left-2.5 sm:left-3.5 z-[1005] flex flex-col items-start gap-2 pointer-events-none max-w-[calc(100%-96px)] sm:max-w-xs">
+        <button
+          type="button"
+          onClick={() => setShowWaitingPanel((prev) => !prev)}
+          className={`pointer-events-auto h-10 px-3 rounded-xl backdrop-blur-md shadow-lg border flex items-center gap-2 active:scale-95 transition-all cursor-pointer text-xs font-extrabold ${
+            waitingCommuters.length > 0
+              ? 'bg-emerald-600/95 hover:bg-emerald-700 text-white border-emerald-400/80'
+              : 'bg-white/95 dark:bg-slate-900/95 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border-slate-200/90 dark:border-slate-700'
+          }`}
+          title="View online waiting students and faculty on the route"
+        >
+          <span className={`w-2 h-2 rounded-full shrink-0 ${waitingCommuters.length > 0 ? 'bg-white animate-ping' : 'bg-slate-400'}`} />
+          <Users className="w-4 h-4 shrink-0" />
+          <span className="truncate">
+            {waitingCommuters.length > 0
+              ? `${waitingCommuters.length} Waiting (${studentWaitingCount}S • ${facultyWaitingCount}F)`
+              : '0 Waiting'}
+          </span>
+          {showWaitingPanel ? <ChevronUp className="w-3.5 h-3.5 shrink-0" /> : <ChevronDown className="w-3.5 h-3.5 shrink-0" />}
+        </button>
+
+        {showWaitingPanel && (
+          <div className="pointer-events-auto w-72 sm:w-80 bg-white/98 dark:bg-slate-900/98 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 p-3 space-y-2.5 text-xs max-h-72 overflow-y-auto">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <div className="font-black text-slate-900 dark:text-white text-xs">
+                  Online Waiting Passengers ({waitingCommuters.length})
+                </div>
+                <div className="text-[10px] text-slate-500 dark:text-slate-400">
+                  {studentWaitingCount} Student(s) &bull; {facultyWaitingCount} Faculty
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowWaitingPanel(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {waitingCommuters.length === 0 ? (
+              <div className="py-5 text-center text-[11px] text-slate-400">
+                No students or faculty are currently waiting online.
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                {positionedCommuters.map((c) => {
+                  const distKm = getDistanceKm(vehicleCoords, [c.lat, c.lng]);
+                  const distLabel = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
+                  const isStudent = c.commuterType === 'student';
+                  return (
+                    <div
+                      key={c.id}
+                      onClick={() => handleLocateCommuter(c.displayLat, c.displayLng)}
+                      className="p-2 rounded-xl bg-slate-50 hover:bg-emerald-50/70 dark:bg-slate-800/70 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex items-center justify-between gap-2 cursor-pointer transition-colors"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span>{isStudent ? '🎓' : '👩‍🏫'}</span>
+                          <span className="font-bold text-slate-900 dark:text-white truncate">{c.fullName}</span>
+                          <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase shrink-0 ${
+                            isStudent
+                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                              : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300'
+                          }`}>
+                            {isStudent ? 'Student' : 'Faculty'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                          Stop: {c.waitingStopName || 'Corridor'} &bull; {distLabel} away
+                        </div>
+                      </div>
+                      <span className="px-2 py-1 rounded-lg bg-blue-600 text-white font-bold text-[10px] shrink-0">
+                        Locate
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ========================================================================= */}
       {/* 2. TOP-RIGHT MAP CONTROLS (FULL SCREEN, LAYER TOGGLE & RECENTER GPS)      */}
       {/* ========================================================================= */}
       <div className="absolute top-24 sm:top-28 right-3 sm:right-3.5 z-[1005] flex flex-col items-end gap-2 pointer-events-none">
@@ -490,6 +646,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
         style={{ width: '100%', height: '100%' }}
       >
         <MapResizer isFullScreen={isFullScreen} />
+        <CommuterTargetController target={focusedCommuterTarget} />
         <DriverNavController 
           coords={vehicleCoords} 
           heading={activeJeepney.heading || 0} 
@@ -655,6 +812,43 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
             opacity: 0.55,
           }}
         />
+
+        {/* LIVE WAITING STUDENTS & FACULTY MARKERS */}
+        {positionedCommuters.map((commuter) => {
+          const isStudent = commuter.commuterType === 'student';
+          const distKm = getDistanceKm(vehicleCoords, [commuter.lat, commuter.lng]);
+          const distLabel = distKm < 1 ? `${Math.round(distKm * 1000)} m away` : `${distKm.toFixed(1)} km away`;
+          return (
+            <Marker
+              key={commuter.id}
+              position={[commuter.displayLat, commuter.displayLng]}
+              icon={createCommuterPinIcon(commuter)}
+              zIndexOffset={850}
+            >
+              <Popup>
+                <div className="p-1 text-xs font-sans space-y-1 min-w-[175px]">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-black text-slate-900 text-xs">{commuter.fullName}</span>
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
+                      isStudent ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'
+                    }`}>
+                      {isStudent ? 'Student' : 'Faculty'}
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-600">
+                    <strong>Waiting Stop:</strong> {commuter.waitingStopName || 'Along Corridor'}
+                  </div>
+                  <div className="text-[11px] text-slate-600">
+                    <strong>Bound:</strong> {commuter.direction === 'Alabang_to_PLMun' ? 'Alabang ➔ PLMun' : 'PLMun ➔ Alabang'}
+                  </div>
+                  <div className="text-[10px] font-mono text-emerald-700 font-bold">
+                    {distLabel} &bull; {commuter.locationSource === 'gps' ? 'Live GPS' : 'At Stop Pin'}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
 
         {/* ACTIVE RED 3D DRIVER VEHICLE (YOU) */}
         <Marker

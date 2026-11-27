@@ -6,6 +6,7 @@ import {
   TransitRoute 
 } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useTransit } from '../context/TransitContext';
 import { TransitMap } from '../components/map/TransitMap';
 import { 
   Bus, 
@@ -46,8 +47,10 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
   route,
 }) => {
   const { currentCommuter, drivers, currentDriver } = useAuth();
+  const { upsertCommuterPresence, removeCommuterPresence } = useTransit();
   const [selectedDirection, setSelectedDirection] = useState<'PLMun_to_Alabang' | 'Alabang_to_PLMun'>('PLMun_to_Alabang');
   const [selectedStopId, setSelectedStopId] = useState<string>(stops[0]?.id || '');
+  const [commuterGps, setCommuterGps] = useState<{ lat: number; lng: number } | null>(null);
   const [selectedJeepneyId, setSelectedJeepneyId] = useState<string | null>(null);
   const [locateTrigger, setLocateTrigger] = useState<number>(0);
   const [selectedCategory, setSelectedCategory] = useState<'all' | 'modern_electric' | 'modern_euro4' | 'traditional_puj'>('all');
@@ -99,6 +102,70 @@ export const CommuterView: React.FC<CommuterViewProps> = ({
   }, [enrichedJeepneys, selectedCategory, selectedDirection]);
 
   const selectedStop = stops.find((s) => s.id === selectedStopId) || stops[0];
+
+  // Acquire live device GPS for logged-in student/faculty so drivers can see waiting passenger locations
+  useEffect(() => {
+    if (!currentCommuter || typeof navigator === 'undefined' || !navigator.geolocation) {
+      setCommuterGps(null);
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setCommuterGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {},
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 5000 }
+    );
+
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        setCommuterGps({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+      },
+      () => {},
+      { enableHighAccuracy: true, maximumAge: 3000, timeout: 10000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [currentCommuter?.id]);
+
+  // Publish live commuter presence (student / faculty) so drivers see waiting passengers & locations in real time
+  useEffect(() => {
+    if (!currentCommuter || !selectedStop) return;
+
+    upsertCommuterPresence({
+      id: currentCommuter.id,
+      fullName: currentCommuter.fullName,
+      idNumber: currentCommuter.idNumber,
+      commuterType: currentCommuter.commuterType,
+      lat: commuterGps ? commuterGps.lat : selectedStop.lat,
+      lng: commuterGps ? commuterGps.lng : selectedStop.lng,
+      locationSource: commuterGps ? 'gps' : 'stop',
+      waitingStopId: selectedStop.id,
+      waitingStopName: selectedStop.name,
+      direction: selectedDirection,
+      status: 'online',
+    });
+  }, [
+    currentCommuter,
+    commuterGps,
+    selectedStop,
+    selectedDirection,
+    upsertCommuterPresence,
+  ]);
+
+  // Mark commuter offline if they close or reload the tab
+  useEffect(() => {
+    if (!currentCommuter) return;
+    const commuterId = currentCommuter.id;
+    const handleUnload = () => {
+      removeCommuterPresence(commuterId);
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [currentCommuter?.id, removeCommuterPresence]);
 
   // Auto-locate a driver on the map the moment they come online (from any browser/device)
   const seenOnlineIdsRef = React.useRef<Set<string>>(new Set());

@@ -3,20 +3,18 @@ import { defineConfig, type Plugin } from 'vite'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 
 /**
- * JeepTrack Live Fleet Relay (dev + preview server)
+ * JeepTrack Live Fleet & Commuter Presence Relay (dev + preview server)
  * ------------------------------------------------------------------
- * Browsers (Chrome, Edge, phones…) do NOT share localStorage or
- * BroadcastChannel, so a driver logged in on one browser/device was
- * invisible to students/faculty/admin on another browser/device.
- *
- * This tiny in-memory relay exposes `/api/live-fleet` so every client
- * can publish its jeepney state (status + GPS) and poll the latest
- * state of every unit. Production (Vercel) uses `api/live-fleet.js`.
+ * Exposes `/api/live-fleet` so drivers, students/faculty, and admins
+ * across different browsers/devices share live PUJ telemetry AND
+ * online waiting commuter (student/faculty) locations in real time.
  */
-type LiveEntry = { unit: { id: string; [key: string]: unknown }; updatedAt: number }
+type LiveUnitEntry = { unit: { id: string; [key: string]: unknown }; updatedAt: number }
+type LiveCommuterEntry = { commuter: { id: string; status?: string; [key: string]: unknown }; updatedAt: number }
 
 function liveFleetRelay(): Plugin {
-  const units = new Map<string, LiveEntry>()
+  const units = new Map<string, LiveUnitEntry>()
+  const commuters = new Map<string, LiveCommuterEntry>()
 
   const handler = (req: IncomingMessage, res: ServerResponse, next: () => void) => {
     if (!req.url || !req.url.startsWith('/api/live-fleet')) return next()
@@ -25,7 +23,13 @@ function liveFleetRelay(): Plugin {
     res.setHeader('Cache-Control', 'no-store')
 
     if (req.method === 'GET') {
-      res.end(JSON.stringify({ units: Array.from(units.values()), serverTime: Date.now() }))
+      res.end(
+        JSON.stringify({
+          units: Array.from(units.values()),
+          commuters: Array.from(commuters.values()),
+          serverTime: Date.now(),
+        })
+      )
       return
     }
 
@@ -38,14 +42,28 @@ function liveFleetRelay(): Plugin {
       req.on('end', () => {
         try {
           const parsed = JSON.parse(body || '{}')
-          const incoming: unknown[] = Array.isArray(parsed?.units) ? parsed.units : []
+          const incomingUnits: unknown[] = Array.isArray(parsed?.units) ? parsed.units : []
+          const incomingCommuters: unknown[] = Array.isArray(parsed?.commuters) ? parsed.commuters : []
           const now = Date.now()
-          for (const raw of incoming) {
-            const unit = raw as LiveEntry['unit']
+
+          for (const raw of incomingUnits) {
+            const unit = raw as LiveUnitEntry['unit']
             if (unit && typeof unit.id === 'string') {
               units.set(unit.id, { unit, updatedAt: now })
             }
           }
+
+          for (const raw of incomingCommuters) {
+            const commuter = raw as LiveCommuterEntry['commuter']
+            if (commuter && typeof commuter.id === 'string') {
+              if (commuter.status === 'offline') {
+                commuters.delete(commuter.id)
+              } else {
+                commuters.set(commuter.id, { commuter, updatedAt: now })
+              }
+            }
+          }
+
           res.end(JSON.stringify({ ok: true, serverTime: now }))
         } catch {
           res.statusCode = 400

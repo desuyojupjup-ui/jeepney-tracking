@@ -129,10 +129,12 @@ function AppContent() {
     } else if (currentRole === 'commuter') {
       userName = currentCommuter?.fullName || 'Commuter';
       roleLabel = 'Commuter';
+      if (currentCommuter) removeCommuterPresence(currentCommuter.id);
       logoutCommuter();
     } else if (isCommuterAuthenticated && currentCommuter) {
       userName = currentCommuter.fullName;
       roleLabel = 'Commuter';
+      removeCommuterPresence(currentCommuter.id);
       logoutCommuter();
     } else if (isOperatorAuthenticated && currentOperator) {
       userName = currentOperator.name;
@@ -234,6 +236,7 @@ function AppContent() {
     kpis,
     hourlyData,
     updateJeepney,
+    removeCommuterPresence,
     acknowledgeAlert,
     resolveAlert,
   } = useTransit();

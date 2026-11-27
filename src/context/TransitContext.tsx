@@ -11,7 +11,8 @@ import {
   TripDirection, 
   AlertType, 
   AlertSeverity,
-  FareConfig
+  FareConfig,
+  OnlineCommuterPresence
 } from '../types';
 import { 
   PLMUN_ALABANG_PATH, 
@@ -37,6 +38,9 @@ interface TransitContextType {
   hourlyData: { hour: string; trips: number; passengers: number }[];
   activeSosAlert: OperationalAlert | null;
   isSimulationActive: boolean;
+  onlineCommuters: OnlineCommuterPresence[];
+  upsertCommuterPresence: (presence: OnlineCommuterPresence) => void;
+  removeCommuterPresence: (commuterId: string) => void;
   
   // Fleet mutations
   addJeepney: (newUnit: Jeepney) => void;
@@ -79,7 +83,9 @@ const STORAGE_GEOFENCE = 'jeeptrack_geofence_events_v3';
 const STORAGE_TRIPS = 'jeeptrack_completed_trips_v3';
 const STORAGE_FARE_CONFIG = 'jeeptrack_fare_config_v1';
 const STORAGE_ROUTE_STOPS = 'jeeptrack_route_stops_v2';
+const STORAGE_ONLINE_COMMUTERS = 'jeeptrack_online_commuters_v1';
 const DRIVER_SESSION_KEY = 'jeeptrack_driver_session';
+const COMMUTER_SESSION_KEY = 'jeeptrack_commuter_session';
 
 // Shared live fleet relay (Vite dev/preview middleware or Vercel /api function)
 const LIVE_FLEET_ENDPOINT = '/api/live-fleet';
@@ -320,6 +326,19 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const [activeSosAlert, setActiveSosAlert] = useState<OperationalAlert | null>(null);
   const [isSimulationActive, setIsSimulationActive] = useState<boolean>(false);
+  const [onlineCommuters, setOnlineCommuters] = useState<OnlineCommuterPresence[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_ONLINE_COMMUTERS);
+      if (saved) {
+        const parsed = JSON.parse(saved) as OnlineCommuterPresence[];
+        if (Array.isArray(parsed)) {
+          const now = Date.now();
+          return parsed.filter((c) => c && c.status === 'online' && (!c.updatedAt || now - c.updatedAt <= LIVE_STALE_MS));
+        }
+      }
+    } catch {}
+    return [];
+  });
 
   // 1.1 Persistent Fare Configuration & Route Stops
   const [fareConfig, setFareConfig] = useState<FareConfig>(() => {
@@ -369,6 +388,8 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else if (type === 'TRIGGER_SOS' && payload) {
           setActiveSosAlert(payload);
           setAlerts(prev => [payload, ...prev]);
+        } else if (type === 'SYNC_COMMUTERS' && Array.isArray(payload)) {
+          setOnlineCommuters(payload);
         }
       };
 
@@ -397,6 +418,12 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         } else if (e.key === STORAGE_TRIPS) {
           const parsed = JSON.parse(e.newValue);
           if (Array.isArray(parsed)) setTrips(parsed);
+        } else if (e.key === STORAGE_ONLINE_COMMUTERS) {
+          const parsed = JSON.parse(e.newValue);
+          if (Array.isArray(parsed)) {
+            const now = Date.now();
+            setOnlineCommuters(parsed.filter((c: OnlineCommuterPresence) => c && c.status === 'online' && (!c.updatedAt || now - c.updatedAt <= LIVE_STALE_MS)));
+          }
         }
       } catch (err) {}
     };
@@ -470,9 +497,24 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const lastRemoteTsRef = useRef<Record<string, number>>({});
   const relayReadyRef = useRef<boolean>(false);
   const pendingPushRef = useRef<Record<string, Jeepney>>({});
+  const pendingCommuterPushRef = useRef<Record<string, OnlineCommuterPresence>>({});
   const pushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const jeepneysRef = useRef<Jeepney[]>(jeepneys);
   jeepneysRef.current = jeepneys;
+  const onlineCommutersRef = useRef<OnlineCommuterPresence[]>(onlineCommuters);
+  onlineCommutersRef.current = onlineCommuters;
+
+  // Commuter logged in on THIS browser (publishes presence heartbeats)
+  const getOwnedCommuterId = (): string | null => {
+    try {
+      const raw = localStorage.getItem(COMMUTER_SESSION_KEY);
+      if (!raw) return null;
+      const comm = JSON.parse(raw);
+      return comm?.id || null;
+    } catch {
+      return null;
+    }
+  };
 
   // Jeepney owned by the driver logged in on THIS browser (publishes heartbeats)
   const getOwnedJeepneyId = (): string | null => {
@@ -496,12 +538,14 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const flushPush = useCallback(() => {
     pushTimerRef.current = null;
     const units = Object.values(pendingPushRef.current);
+    const commuters = Object.values(pendingCommuterPushRef.current);
     pendingPushRef.current = {};
-    if (units.length === 0) return;
+    pendingCommuterPushRef.current = {};
+    if (units.length === 0 && commuters.length === 0) return;
     fetch(LIVE_FLEET_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ units }),
+      body: JSON.stringify({ units, commuters }),
       keepalive: true,
     }).catch(() => {});
   }, []);
@@ -514,6 +558,52 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
       pushTimerRef.current = setTimeout(flushPush, 250);
     }
   }, [flushPush]);
+
+  const queueCommuterPush = useCallback((commuters: OnlineCommuterPresence[]) => {
+    commuters.forEach((c) => {
+      pendingCommuterPushRef.current[c.id] = c;
+    });
+    if (!pushTimerRef.current) {
+      pushTimerRef.current = setTimeout(flushPush, 250);
+    }
+  }, [flushPush]);
+
+  const upsertCommuterPresence = useCallback((presence: OnlineCommuterPresence) => {
+    const entry: OnlineCommuterPresence = {
+      ...presence,
+      status: 'online',
+      updatedAt: Date.now(),
+    };
+    setOnlineCommuters((prev) => {
+      const exists = prev.some((c) => c.id === entry.id);
+      const next = exists ? prev.map((c) => (c.id === entry.id ? entry : c)) : [entry, ...prev];
+      try {
+        localStorage.setItem(STORAGE_ONLINE_COMMUTERS, JSON.stringify(next));
+      } catch {}
+      channelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: next });
+      return next;
+    });
+    queueCommuterPush([entry]);
+  }, [queueCommuterPush]);
+
+  const removeCommuterPresence = useCallback((commuterId: string) => {
+    if (!commuterId) return;
+    delete pendingCommuterPushRef.current[commuterId];
+    setOnlineCommuters((prev) => {
+      const next = prev.filter((c) => c.id !== commuterId);
+      try {
+        localStorage.setItem(STORAGE_ONLINE_COMMUTERS, JSON.stringify(next));
+      } catch {}
+      channelRef.current?.postMessage({ type: 'SYNC_COMMUTERS', payload: next });
+      return next;
+    });
+    fetch(LIVE_FLEET_ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ commuters: [{ id: commuterId, status: 'offline' }] }),
+      keepalive: true,
+    }).catch(() => {});
+  }, []);
 
   // Poll the relay and merge remote updates into local state
   useEffect(() => {
@@ -610,6 +700,41 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         if (changed) {
           setJeepneys(next);
         }
+
+        // Merge live online commuters (students & faculty waiting along the route)
+        if (Array.isArray(data.commuters)) {
+          const ownedCommuterId = getOwnedCommuterId();
+          const mergedCommuters: OnlineCommuterPresence[] = [];
+          const seenCommuterIds = new Set<string>();
+
+          // Keep this browser's own active commuter authoritative
+          if (ownedCommuterId) {
+            const localOwned = onlineCommutersRef.current.find((c) => c.id === ownedCommuterId && c.status === 'online');
+            if (localOwned) {
+              mergedCommuters.push(localOwned);
+              seenCommuterIds.add(ownedCommuterId);
+            }
+          }
+
+          data.commuters.forEach((entry: any) => {
+            const comm = entry?.commuter as OnlineCommuterPresence | undefined;
+            const updatedAt = Number(entry?.updatedAt) || 0;
+            if (!comm?.id || seenCommuterIds.has(comm.id)) return;
+            if (comm.status === 'offline') return;
+            if (serverTime - updatedAt > LIVE_STALE_MS) return;
+            seenCommuterIds.add(comm.id);
+            mergedCommuters.push({ ...comm, status: 'online', updatedAt });
+          });
+
+          const prevJson = JSON.stringify(onlineCommutersRef.current.map(({ updatedAt: _u, ...rest }) => rest));
+          const nextJson = JSON.stringify(mergedCommuters.map(({ updatedAt: _u, ...rest }) => rest));
+          if (prevJson !== nextJson) {
+            setOnlineCommuters(mergedCommuters);
+            try {
+              localStorage.setItem(STORAGE_ONLINE_COMMUTERS, JSON.stringify(mergedCommuters));
+            } catch {}
+          }
+        }
       } catch {
         // Relay unavailable (static hosting) -> app keeps same-browser sync only
       }
@@ -634,18 +759,24 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     queuePush(changedUnits);
   }, [jeepneys, queuePush]);
 
-  // Driver heartbeat: keep this browser's on-duty unit marked as live
+  // Driver & Commuter heartbeat: keep this browser's active session marked as live
   useEffect(() => {
     const beat = () => {
       const ownedId = getOwnedJeepneyId();
-      if (!ownedId) return;
-      const unit = jeepneysRef.current.find((j) => j.id === ownedId);
-      if (unit) queuePush([unit]);
+      if (ownedId) {
+        const unit = jeepneysRef.current.find((j) => j.id === ownedId);
+        if (unit) queuePush([unit]);
+      }
+      const ownedCommuterId = getOwnedCommuterId();
+      if (ownedCommuterId) {
+        const comm = onlineCommutersRef.current.find((c) => c.id === ownedCommuterId && c.status === 'online');
+        if (comm) queueCommuterPush([{ ...comm, updatedAt: Date.now() }]);
+      }
     };
     beat();
     const interval = setInterval(beat, LIVE_HEARTBEAT_MS);
     return () => clearInterval(interval);
-  }, [queuePush]);
+  }, [queuePush, queueCommuterPush]);
 
   // Track progress of en-route jeepneys (0.0 to 1.0 along the corridor path)
   const progressRef = useRef<Record<string, number>>({});
@@ -1137,10 +1268,12 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
     localStorage.removeItem(STORAGE_TRIPS);
     localStorage.removeItem(STORAGE_FARE_CONFIG);
     localStorage.removeItem(STORAGE_ROUTE_STOPS);
+    localStorage.removeItem(STORAGE_ONLINE_COMMUTERS);
     setJeepneys(INITIAL_FLEET);
     setAlerts([]);
     setGeofenceEvents([]);
     setTrips([]);
+    setOnlineCommuters([]);
     setFareConfig(DEFAULT_FARE_CONFIG);
     setStops(MOCK_ROUTE.stops);
   };
@@ -1159,6 +1292,9 @@ export const TransitProvider: React.FC<{ children: React.ReactNode }> = ({ child
         hourlyData: MOCK_HOURLY_TRIPS_DATA,
         activeSosAlert,
         isSimulationActive,
+        onlineCommuters,
+        upsertCommuterPresence,
+        removeCommuterPresence,
         addJeepney,
         updateJeepney,
         deleteJeepney,

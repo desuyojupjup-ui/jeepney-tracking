@@ -30,6 +30,21 @@ export interface CommuterUser {
   lastLoginAt?: string;
 }
 
+export interface OnlineCommuterPresence {
+  id: string;
+  fullName: string;
+  idNumber: string;
+  commuterType: CommuterType;
+  lat: number;
+  lng: number;
+  locationSource: 'gps' | 'stop';
+  waitingStopId?: string;
+  waitingStopName?: string;
+  direction?: TripDirection;
+  status: 'online' | 'offline';
+  updatedAt?: number;
+}
+
 export interface User {
   id: string;
   name: string;

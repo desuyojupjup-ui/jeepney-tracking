@@ -1,22 +1,17 @@
 /**
- * JeepTrack Live Fleet Relay (Vercel Serverless Function)
- * ------------------------------------------------------------------
- * GET  /api/live-fleet  -> { units: [{ unit, updatedAt }], serverTime }
- * POST /api/live-fleet  -> body { units: Jeepney[] } (upsert)
- *
- * Storage:
- *  - If Vercel KV / Upstash Redis env vars are configured
- *    (KV_REST_API_URL + KV_REST_API_TOKEN, or UPSTASH_REDIS_REST_URL +
- *    UPSTASH_REDIS_REST_TOKEN) the fleet is stored in Redis so every
- *    serverless instance shares the same live state (recommended).
- *  - Otherwise falls back to warm-instance memory (best effort).
+ * JeepTrack Live Fleet & Commuter Presence Relay (Vercel Serverless Function)
+ * ---------------------------------------------------------------------------
+ * GET  /api/live-fleet  -> { units: [{ unit, updatedAt }], commuters: [{ commuter, updatedAt }], serverTime }
+ * POST /api/live-fleet  -> body { units?: Jeepney[], commuters?: OnlineCommuterPresence[] }
  */
 
 const REDIS_URL = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
 const REDIS_TOKEN = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-const HASH_KEY = 'jeeptrack:live-fleet';
+const UNITS_HASH_KEY = 'jeeptrack:live-fleet';
+const COMMUTERS_HASH_KEY = 'jeeptrack:live-commuters';
 
-const memoryStore = globalThis.__jeeptrackLiveFleet || (globalThis.__jeeptrackLiveFleet = new Map());
+const memoryUnits = globalThis.__jeeptrackLiveFleet || (globalThis.__jeeptrackLiveFleet = new Map());
+const memoryCommuters = globalThis.__jeeptrackLiveCommuters || (globalThis.__jeeptrackLiveCommuters = new Map());
 
 async function redis(command) {
   const res = await fetch(REDIS_URL, {
@@ -29,9 +24,9 @@ async function redis(command) {
   return data.result;
 }
 
-async function readAll() {
+async function readHash(hashKey, memMap) {
   if (REDIS_URL && REDIS_TOKEN) {
-    const flat = (await redis(['HGETALL', HASH_KEY])) || [];
+    const flat = (await redis(['HGETALL', hashKey])) || [];
     const entries = [];
     for (let i = 1; i < flat.length; i += 2) {
       try {
@@ -42,17 +37,39 @@ async function readAll() {
     }
     return entries;
   }
-  return Array.from(memoryStore.values());
+  return Array.from(memMap.values());
 }
 
 async function writeUnits(units, now) {
+  if (units.length === 0) return;
   if (REDIS_URL && REDIS_TOKEN) {
-    const args = ['HSET', HASH_KEY];
+    const args = ['HSET', UNITS_HASH_KEY];
     for (const unit of units) args.push(unit.id, JSON.stringify({ unit, updatedAt: now }));
     if (args.length > 2) await redis(args);
     return;
   }
-  for (const unit of units) memoryStore.set(unit.id, { unit, updatedAt: now });
+  for (const unit of units) memoryUnits.set(unit.id, { unit, updatedAt: now });
+}
+
+async function writeCommuters(commuters, now) {
+  if (commuters.length === 0) return;
+  const online = commuters.filter((c) => c.status !== 'offline');
+  const offline = commuters.filter((c) => c.status === 'offline');
+
+  if (REDIS_URL && REDIS_TOKEN) {
+    if (online.length > 0) {
+      const args = ['HSET', COMMUTERS_HASH_KEY];
+      for (const commuter of online) args.push(commuter.id, JSON.stringify({ commuter, updatedAt: now }));
+      await redis(args);
+    }
+    if (offline.length > 0) {
+      await redis(['HDEL', COMMUTERS_HASH_KEY, ...offline.map((c) => c.id)]);
+    }
+    return;
+  }
+
+  for (const commuter of online) memoryCommuters.set(commuter.id, { commuter, updatedAt: now });
+  for (const commuter of offline) memoryCommuters.delete(commuter.id);
 }
 
 export default async function handler(req, res) {
@@ -61,18 +78,21 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'GET') {
-      const units = await readAll();
-      res.status(200).send(JSON.stringify({ units, serverTime: Date.now() }));
+      const [units, commuters] = await Promise.all([
+        readHash(UNITS_HASH_KEY, memoryUnits),
+        readHash(COMMUTERS_HASH_KEY, memoryCommuters),
+      ]);
+      res.status(200).send(JSON.stringify({ units, commuters, serverTime: Date.now() }));
       return;
     }
 
     if (req.method === 'POST') {
       let body = req.body;
       if (typeof body === 'string') body = JSON.parse(body || '{}');
-      const incoming = Array.isArray(body?.units) ? body.units : [];
-      const valid = incoming.filter((u) => u && typeof u.id === 'string');
+      const incomingUnits = Array.isArray(body?.units) ? body.units.filter((u) => u && typeof u.id === 'string') : [];
+      const incomingCommuters = Array.isArray(body?.commuters) ? body.commuters.filter((c) => c && typeof c.id === 'string') : [];
       const now = Date.now();
-      await writeUnits(valid, now);
+      await Promise.all([writeUnits(incomingUnits, now), writeCommuters(incomingCommuters, now)]);
       res.status(200).send(JSON.stringify({ ok: true, serverTime: now }));
       return;
     }
@@ -82,4 +102,3 @@ export default async function handler(req, res) {
     res.status(500).send(JSON.stringify({ ok: false, error: String(err?.message || err) }));
   }
 }
-
