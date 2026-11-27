@@ -399,28 +399,21 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
 
   const createCommuterPinIcon = (commuter: OnlineCommuterPresence) => {
     const isStudent = commuter.commuterType === 'student';
-    const firstName = (commuter.fullName || 'Commuter').split(' ')[0].replace(/[<>&"']/g, '');
-    const roleLabel = isStudent ? 'Student' : 'Faculty';
     const bgHex = isStudent ? '#059669' : '#4F46E5';
-    const ringHex = isStudent ? 'rgba(16,185,129,0.35)' : 'rgba(99,102,241,0.35)';
-    const emoji = isStudent ? '🎓' : '👩‍🏫';
+    const ringHex = isStudent ? 'rgba(16,185,129,0.32)' : 'rgba(99,102,241,0.32)';
 
     return L.divIcon({
       html: `
-        <div style="display:flex;flex-direction:column;align-items:center;transform:translate(-50%,-92%);pointer-events:auto;cursor:pointer;">
-          <div style="background:${bgHex};color:#fff;padding:2px 7px;border-radius:9999px;font-size:10px;font-weight:800;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.28);border:1.5px solid #fff;display:flex;align-items:center;gap:4px;margin-bottom:3px;">
-            <span>${emoji}</span>
-            <span>${firstName}</span>
-            <span style="opacity:0.85;font-size:9px;font-weight:700;">• ${roleLabel}</span>
-          </div>
-          <div style="width:28px;height:28px;border-radius:9999px;background:${bgHex};border:2.5px solid #fff;box-shadow:0 0 0 5px ${ringHex},0 4px 10px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;font-size:13px;">
-            ${emoji}
-          </div>
+        <div style="width:32px;height:32px;transform:translate(-50%,-50%);border-radius:9999px;background:${bgHex};border:2.5px solid #ffffff;box-shadow:0 0 0 5px ${ringHex},0 4px 10px rgba(0,0,0,0.28);display:flex;align-items:center;justify-content:center;pointer-events:auto;cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
         </div>
       `,
       className: 'commuter-waiting-pin',
-      iconSize: [1, 1],
-      iconAnchor: [0, 0],
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     });
   };
 
@@ -549,7 +542,7 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
               </div>
             ) : (
               <div className="space-y-1.5">
-                {positionedCommuters.map((c) => {
+                {positionedCommuters.map((c, idx) => {
                   const distKm = getDistanceKm(vehicleCoords, [c.lat, c.lng]);
                   const distLabel = distKm < 1 ? `${Math.round(distKm * 1000)} m` : `${distKm.toFixed(1)} km`;
                   const isStudent = c.commuterType === 'student';
@@ -561,8 +554,14 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
                     >
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span>{isStudent ? '🎓' : '👩‍🏫'}</span>
-                          <span className="font-bold text-slate-900 dark:text-white truncate">{c.fullName}</span>
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white shrink-0 ${
+                            isStudent ? 'bg-emerald-600' : 'bg-indigo-600'
+                          }`}>
+                            <Users className="w-3 h-3" />
+                          </span>
+                          <span className="font-bold text-slate-900 dark:text-white truncate">
+                            Waiting Passenger #{idx + 1}
+                          </span>
                           <span className={`px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase shrink-0 ${
                             isStudent
                               ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
@@ -826,9 +825,9 @@ export const DriverGrabMap: React.FC<DriverGrabMapProps> = ({
               zIndexOffset={850}
             >
               <Popup>
-                <div className="p-1 text-xs font-sans space-y-1 min-w-[175px]">
+                <div className="p-1 text-xs font-sans space-y-1 min-w-[165px]">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-black text-slate-900 text-xs">{commuter.fullName}</span>
+                    <span className="font-black text-slate-900 text-xs">Waiting Passenger</span>
                     <span className={`px-1.5 py-0.5 rounded text-[9px] font-extrabold uppercase ${
                       isStudent ? 'bg-emerald-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800'
                     }`}>
